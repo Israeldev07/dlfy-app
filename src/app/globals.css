@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+@theme {
+  /* Paleta Dfly */
+  --color-paper: #f2f2f2;
+  --color-ink: #262626;
+  --color-ink-soft: #5c5c5c;
+  --color-line: rgb(38 38 38 / 0.14);
+  --color-route: #04b2d9;
+  --color-route-deep: #049dd9;
+  --color-store: #035aa6;
+  --color-brand: #eb0547;
+  --color-brand-deep: #b80339;
+  /* Rojo aclarado para enlaces sobre fondo oscuro (contraste AA sobre la foto). */
+  --color-brand-light: #ff4d77;
+  --color-surface: #ffffff;
+  --color-muted: #eceae6;
+
+  --font-sans: var(--font-archivo), system-ui, sans-serif;
+  --font-display: var(--font-archivo-black), var(--font-archivo), system-ui, sans-serif;
+
+  --radius-control: 8px;
+  --radius-surface: 14px;
+
+  --shadow-lift: 0 14px 30px -22px rgb(38 38 38 / 0.5);
+  --shadow-pop: 0 18px 40px -18px rgb(38 38 38 / 0.45);
+
+  /* Curvas de la skill animacion (Emil Kowalski). */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "tnum" 0;
+  }
+
+  ::selection {
+    background: var(--color-route);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2.5px solid var(--color-route-deep);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  input {
+    caret-color: var(--color-route-deep);
+  }
+
+  a {
+    text-underline-offset: 0.2em;
+    text-decoration-thickness: 1.5px;
+  }
+
+  html {
+    scrollbar-color: rgb(38 38 38 / 0.35) transparent;
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Menú desplegable: sale de su botón (origen arriba a la derecha) con escala + opacidad.
+   Transiciones, no keyframes, para que abrir/cerrar rápido se reoriente sin saltos. */
+@layer components {
+  .menu-panel {
+    transform-origin: top right;
+    transition:
+      opacity 200ms var(--ease-out),
+      transform 200ms var(--ease-out),
+      visibility 0s linear 200ms;
+  }
+  .menu-panel[data-open="false"] {
+    opacity: 0;
+    transform: scale(0.95);
+    visibility: hidden;
+  }
+  .menu-panel[data-open="true"] {
+    transition-delay: 0s;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .menu-panel,
+    .menu-panel[data-open="false"] {
+      transform: none;
+      transition:
+        opacity 150ms ease,
+        visibility 0s linear 150ms;
+    }
+    .menu-panel[data-open="true"] {
+      transition-delay: 0s;
+    }
+  }
+
+  /* Feedback de pulsación en botones primarios. */
+  .press {
+    transition:
+      transform 140ms var(--ease-out),
+      background-color 150ms ease;
+  }
+  .press:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+}
