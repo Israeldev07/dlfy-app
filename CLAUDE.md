@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 App de delivery para **Otavalo (Ecuador)**: USD en centavos, celulares +593. Categorías: Restaurantes, Market, Farmacia, Licores y Mascotas. Flujo de pedidos: cliente → WhatsApp del dueño (datos completos) → comercio (solo productos, botones Aceptar/Rechazar) → confirmación al dueño y al cliente. Vía WhatsApp Cloud API con patrón outbox. Contexto de producto en `PRODUCT.md`; diseño de referencia en `Dfly Home v2.dc.html`.
 
-Hecho: scaffold Next 16 + Prisma 7 + Auth.js v5, home, login, registro y catálogo (`/comercios`, `/comercios/[slug]`). Pendiente: carrito, checkout, mensajería WhatsApp y backoffice.
+Hecho: auth, catálogo, carrito, checkout, pedidos con estado en vivo, perfil, y mensajería (builders, outbox con reintentos, webhook firmado, crons). Sin credenciales de Meta, los mensajes se registran en la consola del servidor (`[whatsapp:dev]`). Pendiente: backoffice (`/admin`), rate limiting y catálogo real.
 
 ## Comandos
 

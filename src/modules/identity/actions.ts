@@ -2,10 +2,10 @@
 
 import bcrypt from "bcryptjs";
 import { AuthError } from "next-auth";
-import { signIn, signOut } from "@/auth";
+import { auth, signIn, signOut } from "@/auth";
 import { prisma } from "@/lib/db";
 import { safeCallbackUrl } from "@/lib/safe-callback";
-import { loginSchema, registerSchema } from "@/lib/validations/auth";
+import { loginSchema, profileSchema, registerSchema } from "@/lib/validations/auth";
 
 export type FormState = {
   error?: string;
@@ -84,4 +84,22 @@ export async function signOutAction() {
 function redirectTarget(formData: FormData) {
   const raw = formData.get("callbackUrl");
   return safeCallbackUrl(typeof raw === "string" ? raw : undefined) ?? "/comercios";
+}
+
+export type ProfileState = { ok?: boolean; fieldErrors?: Partial<Record<string, string>>; values?: Record<string, string> };
+
+export async function updateProfileAction(_prev: ProfileState, formData: FormData): Promise<ProfileState> {
+  const session = await auth();
+  if (!session?.user?.id) return { fieldErrors: { name: "Tu sesión expiró. Vuelve a iniciar sesión." } };
+
+  const raw = { name: String(formData.get("name") ?? ""), phone: String(formData.get("phone") ?? "") };
+  const parsed = profileSchema.safeParse(raw);
+  if (!parsed.success) return { fieldErrors: fieldErrorsFrom(parsed.error.issues), values: raw };
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { name: parsed.data.name, phone: parsed.data.phone },
+    select: { id: true },
+  });
+  return { ok: true, values: raw };
 }

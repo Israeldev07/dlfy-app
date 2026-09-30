@@ -3,7 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Clock } from "lucide-react";
 import { StoreGlyph } from "@/components/store-glyph";
-import { categoryLabel, categorySlug, formatUsd } from "@/modules/catalog/categories";
+import { ProductList } from "@/components/cart/product-list";
+import { categoryLabel, categorySlug } from "@/modules/catalog/categories";
 import { getStoreWithProducts } from "@/modules/catalog/queries";
 import { requireUser } from "@/modules/identity/session";
 
@@ -20,7 +21,7 @@ export default async function StorePage({ params }: PageProps<"/comercios/[slug]
   if (!store) notFound();
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 pt-8 pb-20 sm:px-8 sm:pt-12">
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 pt-8 pb-32 sm:px-8 sm:pt-12">
       <Link
         href={`/comercios?categoria=${categorySlug(store.category)}`}
         className="inline-flex w-fit items-center gap-2 text-[14px] font-medium text-ink/70 no-underline hover:text-ink"
@@ -54,18 +55,16 @@ export default async function StorePage({ params }: PageProps<"/comercios/[slug]
           Este comercio aún no tiene productos disponibles.
         </p>
       ) : (
-        <ul className="divide-y divide-line overflow-hidden rounded-surface bg-surface ring-1 ring-line">
-          {store.products.map((p) => (
-            <li key={p.id} className="flex items-center justify-between gap-4 px-5 py-4 sm:px-6">
-              <div className="min-w-0">
-                <p className="text-[16px] font-semibold">{p.name}</p>
-                {p.description ? <p className="text-[13.5px] text-ink-soft">{p.description}</p> : null}
-              </div>
-              <p className="tabular flex-none text-[16px] font-bold">{formatUsd(p.priceCents)}</p>
-            </li>
-          ))}
-        </ul>
+        <ProductList
+          store={{ id: store.id, slug: store.slug, name: store.name, category: store.category }}
+          products={store.products}
+        />
       )}
+      {store.category === "LIQUOR" ? (
+        <p className="text-[13.5px] text-ink-soft">
+          Venta solo a mayores de 18 años. Te pediremos confirmarlo al hacer el pedido.
+        </p>
+      ) : null}
     </main>
   );
 }

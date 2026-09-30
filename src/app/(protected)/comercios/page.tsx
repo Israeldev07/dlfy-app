@@ -19,7 +19,7 @@ export default async function StoresPage({ searchParams }: PageProps<"/comercios
   const firstName = user.name?.split(" ")[0];
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 pt-10 pb-20 sm:px-8 sm:pt-14">
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 pt-10 pb-32 sm:px-8 sm:pt-14">
       <div className="flex flex-col gap-3">
         <h1 className="font-display text-[34px] leading-none tracking-[-0.03em] text-balance sm:text-[44px]">
           {firstName ? `${firstName}, ¿qué te llevamos hoy?` : "¿Qué te llevamos hoy?"}

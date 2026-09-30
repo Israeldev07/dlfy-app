@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo, Archivo_Black } from "next/font/google";
+import { CartBar } from "@/components/cart/cart-bar";
+import { CartHydrator } from "@/components/cart/cart-hydrator";
 import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
 
@@ -33,6 +35,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-dvh flex-col">
         <SiteHeader />
         <div className="flex flex-1 flex-col">{children}</div>
+        <CartHydrator />
+        <CartBar />
       </body>
     </html>
   );

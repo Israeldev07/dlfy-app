@@ -24,3 +24,8 @@ export const registerSchema = loginSchema.extend({
 
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
+
+export const profileSchema = z.object({
+  name: z.string().trim().min(2, "Ingresa tu nombre").max(80),
+  phone: ecuadorMobileSchema,
+});
