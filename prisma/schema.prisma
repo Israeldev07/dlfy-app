@@ -287,3 +287,17 @@ model WebhookEvent {
 
   @@map("webhook_events")
 }
+
+// ───────────── Seguridad ─────────────
+
+/// Contador de ventana fija para rate limiting. `key` = "<política>:<sha256 del identificador>".
+model RateLimitBucket {
+  key       String   @id
+  count     Int
+  resetAt   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([resetAt])
+  @@map("rate_limit_buckets")
+}

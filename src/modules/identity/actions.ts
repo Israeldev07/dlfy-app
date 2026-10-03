@@ -1,9 +1,13 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { AuthError } from "next-auth";
+import { AuthError, CredentialsSignin } from "next-auth";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { auth, signIn, signOut } from "@/auth";
 import { prisma } from "@/lib/db";
+import { consumeRateLimit, peekRateLimit } from "@/lib/rate-limit";
+import { clientIp, RATE_LIMITED_CODE, retryAfterLabel } from "@/lib/rate-limit-rules";
 import { safeCallbackUrl } from "@/lib/safe-callback";
 import { loginSchema, profileSchema, registerSchema } from "@/lib/validations/auth";
 
@@ -33,6 +37,10 @@ export async function loginAction(_prev: FormState, formData: FormData): Promise
   try {
     await signIn("credentials", { ...parsed.data, redirectTo: redirectTarget(formData) });
   } catch (error) {
+    if (error instanceof CredentialsSignin && error.code === RATE_LIMITED_CODE) {
+      const wait = await loginRetryAfterSec(parsed.data.email);
+      return { error: `Demasiados intentos. Vuelve a intentarlo en ${retryAfterLabel(wait)}.`, values };
+    }
     if (error instanceof AuthError) {
       return { error: "El correo o la contraseña no coinciden.", values };
     }
@@ -49,6 +57,12 @@ export async function registerAction(_prev: FormState, formData: FormData): Prom
     return { fieldErrors: fieldErrorsFrom(parsed.error.issues), values };
   }
   const { name, email, phone, password } = parsed.data;
+
+  // Antes de consultar el email, para que tampoco sirva para enumerar cuentas.
+  const limit = await consumeRateLimit("register:ip", clientIp(await headers()));
+  if (!limit.ok) {
+    return { error: `Demasiados registros desde esta conexión. Inténtalo en ${retryAfterLabel(limit.retryAfterSec)}.`, values };
+  }
 
   const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
   if (existing) {
@@ -69,7 +83,13 @@ export async function registerAction(_prev: FormState, formData: FormData): Prom
     select: { id: true },
   });
 
-  await signIn("credentials", { email, password, redirectTo: redirectTarget(formData) });
+  try {
+    await signIn("credentials", { email, password, redirectTo: redirectTarget(formData) });
+  } catch (error) {
+    // La cuenta ya existe; si el login automático falla (p. ej. rate limit), que entre a mano.
+    if (error instanceof AuthError) redirect("/login");
+    throw error; // redirect de éxito
+  }
   return {};
 }
 
@@ -79,6 +99,13 @@ export async function googleSignInAction() {
 
 export async function signOutAction() {
   await signOut({ redirectTo: "/" });
+}
+
+/** La espera que ve el usuario es la del bloqueo más largo (por IP o por email). */
+async function loginRetryAfterSec(email: string) {
+  const ip = clientIp(await headers());
+  const checks = await Promise.all([peekRateLimit("login:ip", ip), peekRateLimit("login:email", email)]);
+  return Math.max(...checks.map((c) => (c.ok ? 0 : c.retryAfterSec)), 60);
 }
 
 function redirectTarget(formData: FormData) {

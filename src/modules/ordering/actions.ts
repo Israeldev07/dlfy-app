@@ -6,6 +6,8 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { checkoutSchema } from "@/lib/validations/checkout";
+import { consumeRateLimit } from "@/lib/rate-limit";
+import { retryAfterLabel } from "@/lib/rate-limit-rules";
 import { formatUsd } from "@/modules/catalog/categories";
 import { adminNewOrderMessage, sanitizeStoreNotes, storeRequestMessage } from "@/modules/messaging/messages";
 import { buildActionPayload } from "@/modules/messaging/action-payload";
@@ -61,6 +63,12 @@ export async function createOrderAction(_prev: CheckoutState, formData: FormData
     return { productId: product.id, nameSnapshot: product.name, unitPriceCents: product.priceCents, quantity: i.quantity };
   });
   const totals = computeTotals(lines, deliveryFeeCents());
+
+  // Solo cuenta pedidos válidos: corregir el carrito no gasta cupo.
+  const limit = await consumeRateLimit("order:user", userId);
+  if (!limit.ok) {
+    return { error: `Hiciste varios pedidos seguidos. Podrás hacer otro en ${retryAfterLabel(limit.retryAfterSec)}.`, values };
+  }
 
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true, email: true } });
   const customerName = user.name?.trim() || user.email;
