@@ -4,9 +4,10 @@ import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import type { StoreCategory } from "@/generated/prisma/enums";
+import { reconcileCart, type CartChange, type CartLine, type CartQuote } from "./cart-sync";
 
+export type { CartLine } from "./cart-sync";
 export type CartStore = { id: string; slug: string; name: string; category: StoreCategory };
-export type CartLine = { productId: string; name: string; priceCents: number; quantity: number };
 
 type CartState = {
   store: CartStore | null;
@@ -15,6 +16,8 @@ type CartState = {
   add: (store: CartStore, product: Omit<CartLine, "quantity">) => "added" | "conflict";
   setQuantity: (productId: string, quantity: number) => void;
   replaceWith: (store: CartStore, product: Omit<CartLine, "quantity">) => void;
+  /** Aplica precios y disponibilidad actuales del servidor; devuelve qué cambió. */
+  syncPrices: (quote: CartQuote) => CartChange[];
   clear: () => void;
 };
 
@@ -48,6 +51,14 @@ export const useCart = create<CartState>()(
       },
       replaceWith(store, product) {
         set({ store, lines: [{ ...product, quantity: 1 }] });
+      },
+      syncPrices(quote) {
+        const current = get();
+        // La cotización es de otro comercio (el carrito cambió mientras tanto): no se toca.
+        if (current.store?.id !== quote.storeId) return [];
+        const { lines, changes } = reconcileCart(current.lines, quote.products);
+        set({ lines, store: lines.length ? current.store : null });
+        return changes;
       },
       clear() {
         set({ store: null, lines: [] });

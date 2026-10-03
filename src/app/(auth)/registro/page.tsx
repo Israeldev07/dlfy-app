@@ -17,7 +17,7 @@ export default async function RegisterPage({ searchParams }: PageProps<"/registr
         <p className="text-[15px] text-ink-soft">Tarda menos de un minuto. Luego eliges tu comercio y pides.</p>
       </div>
       <div className="flex flex-col gap-5 rounded-surface bg-surface p-5 shadow-lift ring-1 ring-line sm:p-7">
-        <GoogleButton />
+        <GoogleButton callbackUrl={next} />
         <RegisterForm callbackUrl={next} />
       </div>
       <p className="text-center text-[14.5px] text-ink-soft">

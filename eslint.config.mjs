@@ -21,6 +21,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "src/generated/**",
+    // Skills de terceros (versiones fijadas en skills-lock.json).
+    ".claude/**",
   ]),
 ]);
 

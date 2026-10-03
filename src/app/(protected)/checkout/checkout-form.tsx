@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Banknote, Landmark, ShieldCheck } from "lucide-react";
 import { Field, FormError, SubmitButton } from "@/components/forms";
 import { formatUsd } from "@/modules/catalog/categories";
-import { createOrderAction, type CheckoutState } from "@/modules/ordering/actions";
+import { createOrderAction, quoteCartAction, type CheckoutState } from "@/modules/ordering/actions";
+import type { CartChange, CartQuote } from "@/modules/ordering/cart-sync";
 import { cartSummary, useCart, useCartHydrated } from "@/modules/ordering/cart-store";
 
 type Props = {
@@ -18,9 +19,38 @@ export function CheckoutForm({ deliveryFeeCents, defaults }: Props) {
   const store = useCart((s) => s.store);
   const lines = useCart((s) => s.lines);
   const setQuantity = useCart((s) => s.setQuantity);
-  const [state, action] = useActionState<CheckoutState, FormData>(createOrderAction, {});
+  const [changes, setChanges] = useState<CartChange[]>([]);
+
+  // El carrito guarda el precio de cuando se agregó: se pone al día con la BD antes de mostrar el total.
+  function applyQuote(quote: CartQuote) {
+    setChanges(useCart.getState().syncPrices(quote));
+  }
+
+  const [state, action] = useActionState<CheckoutState, FormData>(async (prev, formData) => {
+    const next = await createOrderAction(prev, formData);
+    if (next.quote) applyQuote(next.quote);
+    return next;
+  }, {});
   const fe = state.fieldErrors ?? {};
-  const v = { ...defaults, notes: "", paymentMethod: "CASH", ...state.values };
+  const v = { ...defaults, notes: "", paymentMethod: "CASH", ageConfirmed: "", ...state.values };
+  const ageConfirmed = v.ageConfirmed === "on";
+  const feeCents = state.deliveryFeeCents ?? deliveryFeeCents;
+
+  const storeId = store?.id;
+  useEffect(() => {
+    if (!hydrated || !storeId) return;
+    let cancelled = false;
+    const productIds = useCart.getState().lines.map((l) => l.productId);
+    quoteCartAction({ storeId, productIds })
+      .then(({ quote }) => {
+        if (!cancelled && quote) setChanges(useCart.getState().syncPrices(quote));
+      })
+      // Sin cotización se sigue con el carrito guardado: el servidor revisa el total al enviar.
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, storeId]);
 
   if (!hydrated) {
     return <div aria-busy className="h-96 animate-pulse rounded-surface bg-ink/[0.05] motion-reduce:animate-none" />;
@@ -29,6 +59,7 @@ export function CheckoutForm({ deliveryFeeCents, defaults }: Props) {
   if (!store || lines.length === 0) {
     return (
       <div className="flex flex-col items-start gap-3 rounded-surface bg-surface p-6 ring-1 ring-line sm:p-8">
+        <CartChangesNotice changes={changes} />
         <p className="text-[17px] font-semibold">Tu carrito está vacío.</p>
         <p className="text-[15px] text-ink-soft">Elige un comercio de Otavalo y agrega lo que necesitas.</p>
         <Link
@@ -43,11 +74,13 @@ export function CheckoutForm({ deliveryFeeCents, defaults }: Props) {
 
   const { subtotalCents } = cartSummary(lines);
   const items = JSON.stringify(lines.map((l) => ({ productId: l.productId, quantity: l.quantity })));
+  const totalCents = subtotalCents + feeCents;
 
   return (
     <form action={action} noValidate className="grid gap-8 lg:grid-cols-[1fr_380px] lg:items-start">
       <input type="hidden" name="storeId" value={store.id} />
       <input type="hidden" name="items" value={items} />
+      <input type="hidden" name="expectedTotalCents" value={totalCents} />
 
       <div className="flex flex-col gap-8">
         <FormError message={state.error} />
@@ -174,13 +207,15 @@ export function CheckoutForm({ deliveryFeeCents, defaults }: Props) {
           </div>
           <div className="flex justify-between">
             <dt className="text-ink-soft">Envío</dt>
-            <dd className="tabular">{formatUsd(deliveryFeeCents)}</dd>
+            <dd className="tabular">{formatUsd(feeCents)}</dd>
           </div>
           <div className="flex justify-between border-t border-line pt-2 text-[18px] font-bold">
             <dt>Total</dt>
-            <dd className="tabular">{formatUsd(subtotalCents + deliveryFeeCents)}</dd>
+            <dd className="tabular">{formatUsd(totalCents)}</dd>
           </div>
         </dl>
+
+        <CartChangesNotice changes={changes} />
 
         {store.category === "LIQUOR" ? (
           <div className="flex flex-col gap-1.5">
@@ -188,6 +223,8 @@ export function CheckoutForm({ deliveryFeeCents, defaults }: Props) {
               <input
                 type="checkbox"
                 name="ageConfirmed"
+                defaultChecked={ageConfirmed}
+                key={String(ageConfirmed)}
                 aria-invalid={fe.ageConfirmed ? true : undefined}
                 className="mt-0.5 size-5 flex-none accent-route-deep"
               />
@@ -197,11 +234,41 @@ export function CheckoutForm({ deliveryFeeCents, defaults }: Props) {
           </div>
         ) : null}
 
-        <SubmitButton pendingLabel="Enviando tu pedido…">Hacer pedido · {formatUsd(subtotalCents + deliveryFeeCents)}</SubmitButton>
+        <SubmitButton pendingLabel="Enviando tu pedido…">Hacer pedido · {formatUsd(totalCents)}</SubmitButton>
         <p className="text-center text-[12.5px] text-ink-soft">
           Te avisaremos por WhatsApp cuando el comercio confirme.
         </p>
       </aside>
     </form>
+  );
+}
+
+/** Qué cambió al poner el carrito al día con los precios actuales. */
+function CartChangesNotice({ changes }: { changes: CartChange[] }) {
+  if (changes.length === 0) return null;
+  return (
+    <div role="status" className="flex flex-col gap-2 self-stretch rounded-control bg-surface p-4 ring-2 ring-route">
+      <p className="text-[15px] font-bold">Actualizamos tu carrito</p>
+      <ul className="flex flex-col gap-1.5 text-[14px] leading-snug">
+        {changes.map((c, i) => (
+          <li key={`${c.kind}-${c.name}-${i}`}>
+            {c.kind === "price" ? (
+              <>
+                <span className="font-semibold">{c.name}</span> ahora cuesta{" "}
+                <span className="tabular font-semibold">{formatUsd(c.toCents)}</span>{" "}
+                <span className="text-ink-soft">
+                  (antes <span className="tabular">{formatUsd(c.fromCents)}</span>)
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="font-semibold">{c.name}</span> ya no está disponible y lo quitamos.
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+      <p className="text-[13px] text-ink-soft">Revisa el total antes de hacer tu pedido.</p>
+    </div>
   );
 }

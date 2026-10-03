@@ -248,12 +248,16 @@ enum OutboxKind {
   ADMIN_RESULT
   CUSTOMER_RESULT
   ADMIN_EXPIRED
+  CUSTOMER_CANCELLED
+  STORE_CANCELLED
 }
 
 enum OutboxStatus {
   PENDING
   SENT
   FAILED
+  /// No se envió porque el pedido se canceló antes (p. ej. STORE_REQUEST aún en cola).
+  SKIPPED
 }
 
 model OutboxMessage {

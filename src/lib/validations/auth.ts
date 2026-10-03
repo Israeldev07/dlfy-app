@@ -5,6 +5,11 @@ export const loginSchema = z.object({
   password: z.string().min(8, "Mínimo 8 caracteres").max(72),
 });
 
+/** Quita el prefijo de país (+593) y el 0 inicial: "0991234567" y "+593991234567" → "991234567". */
+export function stripEcuadorPrefix(phone: string) {
+  return phone.replace(/^\+?593/, "").replace(/^0/, "");
+}
+
 /**
  * Celular de Ecuador: se acepta "0991234567", "991234567" o "+593991234567".
  * Se normaliza a E.164 (+5939XXXXXXXX), que es el formato que exige WhatsApp.
@@ -12,7 +17,7 @@ export const loginSchema = z.object({
 export const ecuadorMobileSchema = z
   .string()
   .trim()
-  .transform((v) => v.replace(/[\s()-]/g, "").replace(/^\+?593/, "").replace(/^0/, ""))
+  .transform((v) => stripEcuadorPrefix(v.replace(/[\s()-]/g, "")))
   .pipe(z.string().regex(/^9\d{8}$/, "Ingresa un celular válido (ej. 099 123 4567)"))
   .transform((v) => `+593${v}`);
 

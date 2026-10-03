@@ -31,6 +31,17 @@ export const checkoutSchema = z.object({
   notes: z.string().trim().max(300, "Máximo 300 caracteres").optional().transform((v) => v || null),
   paymentMethod: z.enum(["CASH", "TRANSFER"], { error: "Elige cómo vas a pagar" }),
   ageConfirmed: z.literal("on").optional(),
+  /** Total que vio el cliente. Si no coincide con el de la base de datos, no se crea el pedido. */
+  expectedTotalCents: z.coerce
+    .number({ error: "Recarga la página para ver tu total actualizado." })
+    .int("Recarga la página para ver tu total actualizado.")
+    .min(0, "Recarga la página para ver tu total actualizado."),
 });
 
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
+
+/** Cotización del carrito: precios actuales de los productos de un comercio. */
+export const cartQuoteSchema = z.object({
+  storeId: z.string().min(1).max(40),
+  productIds: z.array(z.string().min(1).max(40)).min(1).max(40),
+});

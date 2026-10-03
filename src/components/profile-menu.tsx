@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
-import { ChevronDown, LogIn, LogOut, Package, UserPlus, UserRound } from "lucide-react";
+import { ChevronDown, LayoutDashboard, LogIn, LogOut, Package, UserPlus, UserRound } from "lucide-react";
 import { signOutAction } from "@/modules/identity/actions";
 
 type Props = {
-  user: { name: string | null; email: string | null } | null;
+  user: { name: string | null; email: string | null; isAdmin?: boolean } | null;
 };
 
 const itemClass =
@@ -83,6 +83,12 @@ export function ProfileMenu({ user }: Props) {
               <Package aria-hidden className="size-[18px] text-store" strokeWidth={1.75} />
               Mis pedidos
             </Link>
+            {user.isAdmin ? (
+              <Link href="/admin" className={itemClass}>
+                <LayoutDashboard aria-hidden className="size-[18px] text-store" strokeWidth={1.75} />
+                Panel Dfly
+              </Link>
+            ) : null}
             <div className="my-1.5 h-px bg-line" />
             <form action={signOutAction}>
               <button type="submit" className={`${itemClass} text-brand-deep`}>

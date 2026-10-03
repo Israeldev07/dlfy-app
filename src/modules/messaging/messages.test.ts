@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   adminNewOrderMessage,
+  customerCancelledMessage,
   sanitizeStoreNotes,
+  storeCancelledMessage,
   storeRequestMessage,
   toParam,
   type AdminOrderView,
@@ -57,5 +59,25 @@ describe("toParam", () => {
   it("elimina saltos de línea y espacios repetidos que Meta rechaza", () => {
     expect(toParam("línea 1\nlínea 2\t\tfin     ok")).toBe("línea 1 / línea 2 / fin ok");
     expect(toParam("   ")).toBe("-");
+  });
+});
+
+describe("avisos de cancelación", () => {
+  it("el comercio solo recibe código y su nombre", () => {
+    // Aunque se le pase la vista completa, el builder ignora los datos del cliente.
+    const msg = storeCancelledMessage(order);
+    const everything = JSON.stringify(msg);
+    expect(everything).not.toContain("María");
+    expect(everything).not.toContain("991234567");
+    expect(everything).not.toContain("Bolívar");
+    expect(msg.bodyParams).toEqual(["A7K3P", "Fritadas El Lago"]);
+  });
+
+  it("el cliente recibe su nombre, código y comercio", () => {
+    expect(customerCancelledMessage("A7K3P", "María", "Fritadas El Lago").bodyParams).toEqual([
+      "María",
+      "A7K3P",
+      "Fritadas El Lago",
+    ]);
   });
 });

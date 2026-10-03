@@ -7,6 +7,8 @@ import { registerAction, type FormState } from "@/modules/identity/actions";
 export function RegisterForm({ callbackUrl }: { callbackUrl?: string }) {
   const [state, action] = useActionState<FormState, FormData>(registerAction, {});
   const optInError = state.fieldErrors?.whatsappOptIn;
+  // Tras un error, la casilla sigue lo que se envió (React reinicia el formulario al terminar la action).
+  const optedIn = state.values?.whatsappOptIn === "on";
 
   return (
     <form action={action} noValidate className="flex flex-col gap-4">
@@ -58,6 +60,8 @@ export function RegisterForm({ callbackUrl }: { callbackUrl?: string }) {
           <input
             type="checkbox"
             name="whatsappOptIn"
+            defaultChecked={optedIn}
+            key={String(optedIn)}
             required
             aria-invalid={optInError ? true : undefined}
             aria-describedby={optInError ? "optin-error" : undefined}

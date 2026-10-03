@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 App de delivery para **Otavalo (Ecuador)**: USD en centavos, celulares +593. Categorías: Restaurantes, Market, Farmacia, Licores y Mascotas. Flujo de pedidos: cliente → WhatsApp del dueño (datos completos) → comercio (solo productos, botones Aceptar/Rechazar) → confirmación al dueño y al cliente. Vía WhatsApp Cloud API con patrón outbox. Contexto de producto en `PRODUCT.md`; diseño de referencia en `Dfly Home v2.dc.html`.
 
-Hecho: auth, catálogo, carrito, checkout, pedidos con estado en vivo, perfil, y mensajería (builders, outbox con reintentos, webhook firmado, crons). Sin credenciales de Meta, los mensajes se registran en la consola del servidor (`[whatsapp:dev]`). Pendiente: backoffice (`/admin`) y catálogo real.
+Hecho: auth, catálogo, carrito, checkout, pedidos con estado en vivo, perfil, y mensajería (builders, outbox con reintentos, webhook firmado, crons). Sin credenciales de Meta, los mensajes se registran en la consola del servidor (`[whatsapp:dev]`). Backoffice en `/admin` (resumen del día, pedidos con cancelar/reintentar mensajes, comercios y productos). Pendiente: catálogo real.
 
 ## Comandos
 
@@ -31,7 +31,7 @@ Notas: el cliente Prisma (v7, `prisma-client` + `@prisma/adapter-pg`) se genera 
 ## Configuración de Claude en el repo
 
 - `.claude/rules/` — reglas detalladas por capa (`nextjs.md`, `database.md`, `auth.md`); son normativas y amplían este archivo.
-- `.claude/agents/frontend-builder.md` — subagente para trabajo de UI (páginas, componentes, diseño, animación). Solo usa las skills del proyecto: `impeccable`, `design-taste-frontend` y `animacion`.
+- `.claude/agents/frontend-builder.md` — subagente para trabajo de UI (páginas, componentes, diseño, animación). Solo usa las skills del proyecto: `impeccable`, `design-taste-frontend` y `animate`.
 - `.claude/skills/` — skills de diseño instaladas desde GitHub (versiones fijadas en `skills-lock.json`); no editarlas a mano.
 
 Estas reglas definen el stack base. Toda decisión técnica nueva debe respetarlas; si algo requiere desviarse, se propone y se justifica antes de implementarlo.
@@ -61,7 +61,7 @@ La lógica de negocio vive en `src/modules/<dominio>/` (`identity`, `catalog`, `
 1. `ordering/actions.ts#createOrderAction` valida con Zod, **recalcula precios desde la BD** y, en una sola transacción, crea el pedido y encola dos mensajes: `ADMIN_NEW_ORDER` (datos completos al dueño) y `STORE_REQUEST` (solo productos y notas saneadas al comercio; nunca datos del cliente). Luego dispara el envío con `after()`.
 2. `messaging/outbox.ts#dispatchOutbox` envía lo pendiente con reserva optimista (`attempts` como versión), backoff exponencial y máx. 5 intentos. Al enviarse `STORE_REQUEST`, el pedido pasa a `SENT_TO_STORE`. Es seguro correrlo en paralelo (`after()` + cron).
 3. Los botones del comercio llevan un payload firmado con HMAC (`messaging/action-payload.ts`, `ORDER_ACTION_SECRET`). El webhook (`api/webhooks/whatsapp`) verifica la firma de Meta, deduplica por `WebhookEvent.waMessageId` y llama a `ordering/store-response.ts#applyStoreResponse`, que exige que el remitente sea el número del comercio.
-4. Crons (`api/cron/outbox`, `api/cron/expire-orders`, autenticados con `Bearer CRON_SECRET` vía `lib/cron-auth.ts`): reintentos del outbox y expiración de pedidos sin respuesta tras `ORDER_RESPONSE_TIMEOUT_MIN`.
+4. Crons (`api/cron/outbox`, `api/cron/expire-orders`, autenticados con `Bearer CRON_SECRET` vía `lib/cron-auth.ts`): reintentos del outbox y expiración de pedidos sin respuesta tras `ORDER_RESPONSE_TIMEOUT_MIN`. El repo no los programa (no hay `vercel.json`); hay que invocarlos desde fuera.
 
 Invariantes:
 - Todo cambio de estado pasa por `ordering/transitions.ts#transitionOrder`: valida contra la tabla de `domain.ts`, hace `updateMany` condicionado al estado actual (gana la primera respuesta) y registra un `OrderStatusEvent`.
@@ -70,6 +70,8 @@ Invariantes:
 - `messaging/transport.ts` usa la Cloud API si hay credenciales; si no, `DevLogTransport`. Los mensajes son plantillas de Meta (`template` + `bodyParams` + `quickReplies`).
 
 **Carrito**: estado cliente con Zustand persistido (`ordering/cart-store.ts`), un solo comercio por carrito; en el checkout los precios del cliente se ignoran.
+
+**Panel admin** (`src/app/admin`, lógica en `modules/admin`): cada página llama a `identity/session.ts#requireAdmin` y cada acción a `assertAdmin()`; ambos leen el rol de la BD, no del JWT, y a quien no es admin le responden 404. El usuario `ADMIN` lo crea o asciende el seed con `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`. La cancelación (`ordering/admin-cancel.ts`) marca `SKIPPED` el `STORE_REQUEST` aún en cola y avisa al comercio solo si ya recibió el pedido; si el pedido al comercio sale justo mientras se cancela, el outbox le encola el aviso.
 
 **Rate limiting**: ventana fija en Postgres (`RateLimitBucket`, upsert atómico en `lib/rate-limit.ts`; límites en `lib/rate-limit-rules.ts`). Login por IP y por email dentro de `authorize()` (cubre también el endpoint de Auth.js); al superarlo, el bloqueo dura 15 min completos desde ese momento (`blockSec`), registro por IP y pedidos por usuario. El cron `expire-orders` borra las ventanas vencidas.
 

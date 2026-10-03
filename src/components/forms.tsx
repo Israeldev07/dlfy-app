@@ -2,7 +2,7 @@
 
 import { useFormStatus } from "react-dom";
 import { LoaderCircle } from "lucide-react";
-import type { InputHTMLAttributes, ReactNode } from "react";
+import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 
 type FieldProps = InputHTMLAttributes<HTMLInputElement> & {
   label: string;
@@ -37,6 +37,94 @@ export function Field({ label, name, error, hint, id, ...input }: FieldProps) {
         </p>
       ) : null}
     </div>
+  );
+}
+
+const controlRing =
+  "rounded-control bg-surface text-[16px] text-ink ring-1 ring-ink/20 transition-shadow duration-150 outline-none placeholder:text-ink-soft hover:ring-ink/35 focus-visible:ring-2 focus-visible:ring-route-deep focus-visible:outline-none aria-invalid:ring-2 aria-invalid:ring-brand";
+
+function FieldShell({ id, label, error, hint, children }: { id: string; label: string; error?: string; hint?: ReactNode; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="text-[14px] font-semibold text-ink">
+        {label}
+      </label>
+      {children}
+      {error ? (
+        <p id={`${id}-error`} className="text-[13.5px] font-medium text-brand-deep">
+          {error}
+        </p>
+      ) : hint ? (
+        <p id={`${id}-hint`} className="text-[13px] text-ink-soft">
+          {hint}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function describedBy(id: string, error?: string, hint?: ReactNode) {
+  return error ? `${id}-error` : hint ? `${id}-hint` : undefined;
+}
+
+type TextareaFieldProps = TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string; name: string; error?: string; hint?: ReactNode };
+
+export function TextareaField({ label, name, error, hint, id, rows = 3, ...rest }: TextareaFieldProps) {
+  const fieldId = id ?? name;
+  return (
+    <FieldShell id={fieldId} label={label} error={error} hint={hint}>
+      <textarea
+        id={fieldId}
+        name={name}
+        rows={rows}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy(fieldId, error, hint)}
+        className={`w-full resize-y px-4 py-3 ${controlRing}`}
+        {...rest}
+      />
+    </FieldShell>
+  );
+}
+
+type SelectFieldProps = SelectHTMLAttributes<HTMLSelectElement> & {
+  label: string;
+  name: string;
+  options: { value: string; label: string }[];
+  error?: string;
+  hint?: ReactNode;
+};
+
+export function SelectField({ label, name, options, error, hint, id, ...rest }: SelectFieldProps) {
+  const fieldId = id ?? name;
+  return (
+    <FieldShell id={fieldId} label={label} error={error} hint={hint}>
+      <select
+        id={fieldId}
+        name={name}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy(fieldId, error, hint)}
+        className={`h-12 w-full px-3.5 ${controlRing}`}
+        {...rest}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </FieldShell>
+  );
+}
+
+export function CheckboxField({ label, name, hint, defaultChecked }: { label: string; name: string; hint?: ReactNode; defaultChecked?: boolean }) {
+  return (
+    <label className="flex cursor-pointer items-start gap-3 text-[15px] leading-snug">
+      <input type="checkbox" name={name} defaultChecked={defaultChecked} className="mt-0.5 size-5 flex-none accent-route-deep" />
+      <span>
+        <span className="font-semibold">{label}</span>
+        {hint ? <span className="block text-[13px] text-ink-soft">{hint}</span> : null}
+      </span>
+    </label>
   );
 }
 

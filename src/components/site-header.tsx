@@ -15,7 +15,7 @@ export async function SiteHeader() {
         >
           Dfly
         </Link>
-        <ProfileMenu user={user ? { name: user.name ?? null, email: user.email ?? null } : null} />
+        <ProfileMenu user={user ? { name: user.name ?? null, email: user.email ?? null, isAdmin: user.role === "ADMIN" } : null} />
       </div>
     </header>
   );

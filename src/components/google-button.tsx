@@ -1,11 +1,15 @@
 import { googleSignInAction } from "@/modules/identity/actions";
 
-/** Solo se muestra si Google OAuth está configurado (AUTH_GOOGLE_ID). */
-export function GoogleButton() {
+/**
+ * Solo se muestra si Google OAuth está configurado (AUTH_GOOGLE_ID).
+ * `callbackUrl` ya viene saneado por la página; la action lo vuelve a sanear.
+ */
+export function GoogleButton({ callbackUrl }: { callbackUrl?: string }) {
   if (!process.env.AUTH_GOOGLE_ID) return null;
   return (
     <>
       <form action={googleSignInAction}>
+        {callbackUrl ? <input type="hidden" name="callbackUrl" value={callbackUrl} /> : null}
         <button
           type="submit"
           className="flex h-[52px] w-full items-center justify-center gap-3 rounded-control bg-surface text-[15px] font-semibold text-ink ring-1 ring-ink/20 transition-colors duration-150 hover:bg-ink/[0.04]"

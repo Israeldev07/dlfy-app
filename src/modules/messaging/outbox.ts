@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import type { OutboxKind } from "@/generated/prisma/enums";
 import { transitionOrder } from "@/modules/ordering/transitions";
-import type { OutgoingMessage } from "./messages";
+import { storeCancelledMessage, type OutgoingMessage } from "./messages";
 import { getTransport } from "./transport";
 
 const MAX_ATTEMPTS = 5;
@@ -65,7 +65,8 @@ export async function dispatchOutbox({ orderId, limit = 25 }: { orderId?: string
           data: { status: "SENT", waMessageId: id, lastError: null },
         });
         if (msg.kind === "STORE_REQUEST") {
-          await transitionOrder(tx, msg.orderId, "PENDING", "SENT_TO_STORE", "SYSTEM");
+          const moved = await transitionOrder(tx, msg.orderId, "PENDING", "SENT_TO_STORE", "SYSTEM");
+          if (!moved) await noticeStoreIfCancelledInFlight(tx, msg.orderId);
         }
       });
       sent++;
@@ -84,4 +85,25 @@ export async function dispatchOutbox({ orderId, limit = 25 }: { orderId?: string
   }
 
   return { processed: due.length, sent, failed };
+}
+
+/**
+ * El admin canceló mientras el pedido al comercio ya estaba saliendo: el comercio lo recibió
+ * igual, así que se le avisa que no lo prepare (una sola vez).
+ */
+async function noticeStoreIfCancelledInFlight(tx: Prisma.TransactionClient, orderId: string) {
+  const order = await tx.order.findUnique({
+    where: { id: orderId },
+    select: { status: true, publicCode: true, store: { select: { name: true, whatsappPhone: true } } },
+  });
+  if (order?.status !== "CANCELLED") return;
+  const already = await tx.outboxMessage.count({ where: { orderId, kind: "STORE_CANCELLED" } });
+  if (already > 0) return;
+  await enqueue(
+    tx,
+    orderId,
+    "STORE_CANCELLED",
+    order.store.whatsappPhone,
+    storeCancelledMessage({ publicCode: order.publicCode, storeName: order.store.name }),
+  );
 }

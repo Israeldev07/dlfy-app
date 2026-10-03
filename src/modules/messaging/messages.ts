@@ -42,6 +42,8 @@ export const TEMPLATES = {
   customerAccepted: "pedido_confirmado_cliente",
   customerRejected: "pedido_rechazado_cliente",
   adminExpired: "pedido_sin_respuesta_admin",
+  customerCancelled: "pedido_cancelado_cliente",
+  storeCancelled: "pedido_cancelado_comercio",
 } as const;
 
 const LANG = "es";
@@ -136,5 +138,26 @@ export function adminExpiredMessage(publicCode: string, storeName: string, minut
     language: LANG,
     bodyParams: params,
     preview: `Pedido #${params[0]}: ${params[1]} no respondió en ${params[2]} min. Llama al comercio.`,
+  };
+}
+
+export function customerCancelledMessage(publicCode: string, customerFirstName: string, storeName: string): OutgoingMessage {
+  const params = [customerFirstName, publicCode, storeName].map(toParam);
+  return {
+    template: TEMPLATES.customerCancelled,
+    language: LANG,
+    bodyParams: params,
+    preview: `Hola ${params[0]}, tu pedido #${params[1]} en ${params[2]} fue cancelado. No se te cobrará nada.`,
+  };
+}
+
+/** Aviso al comercio: solo código y nombre del comercio, nunca datos del cliente. */
+export function storeCancelledMessage(o: Pick<StoreOrderView, "publicCode" | "storeName">): OutgoingMessage {
+  const params = [o.publicCode, o.storeName].map(toParam);
+  return {
+    template: TEMPLATES.storeCancelled,
+    language: LANG,
+    bodyParams: params,
+    preview: `Pedido #${params[0]} de Dfly para ${params[1]} fue CANCELADO. No lo prepares.`,
   };
 }

@@ -25,7 +25,7 @@
   --shadow-lift: 0 14px 30px -22px rgb(38 38 38 / 0.5);
   --shadow-pop: 0 18px 40px -18px rgb(38 38 38 / 0.45);
 
-  /* Curvas de la skill animacion (Emil Kowalski). */
+  /* Curvas de la skill animate (Emil Kowalski). */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }

@@ -17,7 +17,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         <p className="text-[15px] text-ink-soft">Entra para ver los comercios de Otavalo y hacer tu pedido.</p>
       </div>
       <div className="flex flex-col gap-5 rounded-surface bg-surface p-5 shadow-lift ring-1 ring-line sm:p-7">
-        <GoogleButton />
+        <GoogleButton callbackUrl={next} />
         <LoginForm callbackUrl={next} />
       </div>
       <p className="text-center text-[14.5px] text-ink-soft">

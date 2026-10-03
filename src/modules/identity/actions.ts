@@ -51,7 +51,7 @@ export async function loginAction(_prev: FormState, formData: FormData): Promise
 
 export async function registerAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const raw = Object.fromEntries(formData) as Record<string, string>;
-  const values = { name: raw.name ?? "", email: raw.email ?? "", phone: raw.phone ?? "" };
+  const values = { name: raw.name ?? "", email: raw.email ?? "", phone: raw.phone ?? "", whatsappOptIn: raw.whatsappOptIn ?? "" };
   const parsed = registerSchema.safeParse(raw);
   if (!parsed.success) {
     return { fieldErrors: fieldErrorsFrom(parsed.error.issues), values };
@@ -93,8 +93,8 @@ export async function registerAction(_prev: FormState, formData: FormData): Prom
   return {};
 }
 
-export async function googleSignInAction() {
-  await signIn("google", { redirectTo: "/comercios" });
+export async function googleSignInAction(formData: FormData) {
+  await signIn("google", { redirectTo: redirectTarget(formData) });
 }
 
 export async function signOutAction() {
