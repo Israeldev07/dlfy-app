@@ -39,7 +39,7 @@ export default async function StorePage({ params }: PageProps<"/comercios/[slug]
             {store.name}
           </h1>
           <p className="flex flex-wrap items-center gap-x-2 text-[14.5px] text-ink/70">
-            <span>{store.sector}, {store.city}</span>
+            <span>{store.sector === store.city ? store.city : `${store.sector}, ${store.city}`}</span>
             <span aria-hidden>·</span>
             <span className="inline-flex items-center gap-1.5 font-medium text-store">
               <Clock aria-hidden className="size-3.5" strokeWidth={2} />

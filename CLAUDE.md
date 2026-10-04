@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 App de delivery para **Otavalo (Ecuador)**: USD en centavos, celulares +593. Categorías: Restaurantes, Market, Farmacia, Licores y Mascotas. Flujo de pedidos: cliente → WhatsApp del dueño (datos completos) → comercio (solo productos, botones Aceptar/Rechazar) → confirmación al dueño y al cliente. Vía WhatsApp Cloud API con patrón outbox. Contexto de producto en `PRODUCT.md`; diseño de referencia en `Dfly Home v2.dc.html`.
 
-Hecho: auth, catálogo, carrito, checkout, pedidos con estado en vivo, perfil, y mensajería (builders, outbox con reintentos, webhook firmado, crons). Sin credenciales de Meta, los mensajes se registran en la consola del servidor (`[whatsapp:dev]`). Backoffice en `/admin` (resumen del día, pedidos con cancelar/reintentar mensajes, comercios y productos). Pendiente: catálogo real.
+Hecho: auth, catálogo, carrito, checkout, pedidos con estado en vivo, perfil, y mensajería (builders, outbox con reintentos, webhook firmado, crons). Sin credenciales de Meta, los mensajes se registran en la consola del servidor (`[whatsapp:dev]`). Backoffice en `/admin` (resumen del día, pedidos con cancelar/reintentar mensajes, comercios y productos). Catálogo real de restaurantes en `prisma/data/catalogo-otavalo.ts` (6 comercios con menú; `Store.whatsappPhone` es obligatorio porque ahí llegan los pedidos, así que los restaurantes del directorio quedan en `pendingStores` hasta tener número). Pendiente: WhatsApp y menú de esos restaurantes, fotos de productos, comercios de Market/Farmacia/Licores/Mascotas (hoy solo los ficticios del seed).
 
 ## Comandos
 
@@ -24,6 +24,7 @@ Hecho: auth, catálogo, carrito, checkout, pedidos con estado en vivo, perfil, y
 | Nueva migración (local) | `npm run db:migrate -- --name <nombre>` |
 | Migraciones (producción) | `npm run db:deploy` |
 | Seed | `npm run db:seed` |
+| Importar catálogo real (idempotente) | `npm run db:import-catalog` |
 | Explorar datos | `npm run db:studio` |
 
 Notas: el cliente Prisma (v7, `prisma-client` + `@prisma/adapter-pg`) se genera en `src/generated/prisma` (ignorado por git) y se importa desde `@/generated/prisma/client`; los enums desde `@/generated/prisma/enums`. La app conecta con `DATABASE_URL` (puede ir por pooler); el CLI (`prisma.config.ts`) usa `DIRECT_URL`. Los tests son unitarios puros (`src/**/*.test.ts`), sin base de datos. npm 12 bloquea los scripts de instalación, por eso se usa `bcryptjs`. `src/proxy.ts` debe exportar la función por defecto (no sirve una exportación desestructurada).
@@ -70,6 +71,8 @@ Invariantes:
 - `messaging/transport.ts` usa la Cloud API si hay credenciales; si no, `DevLogTransport`. Los mensajes son plantillas de Meta (`template` + `bodyParams` + `quickReplies`).
 
 **Carrito**: estado cliente con Zustand persistido (`ordering/cart-store.ts`), un solo comercio por carrito; en el checkout los precios del cliente se ignoran.
+
+**Catálogo real**: fuente, el catálogo de WhatsApp Business de Dfly (sin promociones temporales ni productos sin precio). `prisma/import-catalog.ts` hace upsert del comercio por `slug` (nombre, descripción, WhatsApp; no toca sector, tiempo de entrega, visibilidad ni imagen, que se ajustan en `/admin`) y del producto por nombre dentro del comercio (precio y descripción); nunca borra.
 
 **Panel admin** (`src/app/admin`, lógica en `modules/admin`): cada página llama a `identity/session.ts#requireAdmin` y cada acción a `assertAdmin()`; ambos leen el rol de la BD, no del JWT, y a quien no es admin le responden 404. El usuario `ADMIN` lo crea o asciende el seed con `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`. La cancelación (`ordering/admin-cancel.ts`) marca `SKIPPED` el `STORE_REQUEST` aún en cola y avisa al comercio solo si ya recibió el pedido; si el pedido al comercio sale justo mientras se cancela, el outbox le encola el aviso.
 
