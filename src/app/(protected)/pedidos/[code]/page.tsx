@@ -90,6 +90,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/pe
             <li key={item.id} className="flex justify-between gap-3 text-[15px]">
               <span>
                 <span className="tabular font-semibold">{item.quantity} ×</span> {item.nameSnapshot}
+                {item.optionsSummary ? <span className="block text-[13px] text-ink-soft">{item.optionsSummary}</span> : null}
               </span>
               <span className="tabular">{formatUsd(item.unitPriceCents * item.quantity)}</span>
             </li>

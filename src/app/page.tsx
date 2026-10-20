@@ -1,15 +1,13 @@
-import { existsSync } from "node:fs";
-import path from "node:path";
-import Image from "next/image";
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { CategoryChips } from "@/components/category-chips";
+import { HeroVideo } from "@/components/hero-video";
 import { StoreFeature } from "@/components/store-feature";
 import { listStores } from "@/modules/catalog/queries";
 
-// Foto del hero (repartidor en moto). Colocar el archivo en public/images/hero-rider.jpg.
-const HERO_SRC = "/images/hero-rider.jpg";
-const hasHeroImage = existsSync(path.join(process.cwd(), "public", HERO_SRC));
+/** Posición en la entrada escalonada del hero (ver `.hero-in` en globals.css). */
+const step = (i: number) => ({ "--i": i }) as CSSProperties;
 
 export default async function HomePage() {
   const stores = await listStores().catch(() => []);
@@ -17,34 +15,29 @@ export default async function HomePage() {
 
   return (
     <main className="flex flex-1 flex-col">
-      <section className="relative isolate overflow-hidden bg-ink">
-        {hasHeroImage ? (
-          <>
-            <Image
-              src={HERO_SRC}
-              alt="Repartidor de Dfly en moto llegando a Otavalo"
-              fill
-              priority
-              sizes="100vw"
-              className="-z-20 object-cover object-[72%_center] sm:object-center"
-            />
-            {/* Velo de legibilidad: oscurece la zona del texto y deja libre al repartidor. */}
-            <div
-              aria-hidden
-              className="absolute inset-0 -z-10 bg-linear-to-t from-ink/85 via-ink/55 to-ink/25 sm:bg-linear-to-r sm:from-ink/85 sm:via-ink/45 sm:via-45% sm:to-transparent sm:to-70%"
-            />
-          </>
-        ) : null}
-        <div className="mx-auto flex min-h-[calc(100svh-4rem)] w-full max-w-7xl flex-col justify-center gap-7 px-4 py-14 sm:min-h-[600px] sm:gap-8 sm:px-8 sm:py-[72px]">
-          <h1 className="max-w-[11ch] font-display text-[44px] leading-[0.96] tracking-[-0.035em] text-balance text-paper [text-shadow:0_2px_18px_rgb(20_20_20/0.55)] sm:text-[60px]">
-            Todo lo que necesitas, en una sola{" "}
-            <span className="text-route [text-shadow:0_2px_18px_rgb(20_20_20/0.85)]">ruta</span>.
+      {/* Móvil y tablet: video arriba y texto debajo sobre azul oscuro. Escritorio: video de fondo
+          contenido a la derecha (su fondo es el mismo azul de la sección, así que el resto se funde)
+          con un velo a la izquierda para leer el texto. */}
+      <section className="relative isolate overflow-hidden bg-hero-deep lg:bg-hero">
+        <div className="relative lg:absolute lg:inset-0 lg:-z-10">
+          <HeroVideo className="block aspect-[4/3] w-full bg-hero object-cover object-[72%_50%] sm:aspect-[5/2] sm:object-[70%_50%] lg:aspect-auto lg:h-full lg:object-contain lg:object-right" />
+          <div
+            aria-hidden
+            className="absolute inset-0 bg-linear-to-b from-transparent from-75% to-hero-deep lg:bg-linear-to-r lg:from-hero-deep/80 lg:from-0% lg:via-hero-deep/40 lg:via-35% lg:to-transparent lg:to-55%"
+          />
+        </div>
+        <div className="mx-auto flex w-full max-w-7xl flex-col justify-center gap-7 px-4 pt-6 pb-14 sm:gap-8 sm:px-8 sm:pb-[72px] lg:min-h-[600px] lg:pt-[72px]">
+          <h1
+            style={step(0)}
+            className="hero-in max-w-[11ch] font-display text-[44px] leading-[0.96] tracking-[-0.035em] text-balance text-paper sm:text-[60px]"
+          >
+            Todo lo que necesitas, en una sola <span className="text-route">ruta</span>.
           </h1>
-          <p className="max-w-[44ch] text-[16px] leading-[1.55] font-medium text-paper [text-shadow:0_1px_12px_rgb(20_20_20/0.7)]">
+          <p style={step(1)} className="hero-in max-w-[44ch] text-[16px] leading-[1.55] font-medium text-paper">
             Restaurantes, market, farmacia, licores y mascotas de Otavalo en un solo lugar. Elige qué
             necesitas y te lo llevamos.
           </p>
-          <div>
+          <div style={step(2)} className="hero-in">
             <Link
               href="/comercios"
               className="press inline-flex h-14 items-center gap-2.5 rounded-control bg-route px-7 text-[15px] font-bold text-ink no-underline hover:bg-route-deep"
@@ -53,7 +46,9 @@ export default async function HomePage() {
               <ArrowRight aria-hidden className="size-[18px]" strokeWidth={2.25} />
             </Link>
           </div>
-          <CategoryChips tone="dark" />
+          <div style={step(3)} className="hero-in">
+            <CategoryChips tone="dark" />
+          </div>
         </div>
       </section>
 

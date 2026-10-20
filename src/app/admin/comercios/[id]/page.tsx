@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CheckCircle2, ExternalLink, Pencil, Plus } from "lucide-react";
@@ -78,10 +79,16 @@ export default async function AdminStorePage({ params, searchParams }: PageProps
             <ul className="divide-y divide-line overflow-hidden rounded-surface bg-surface ring-1 ring-line">
               {store.products.map((p) => (
                 <li key={p.id} className={`flex items-center gap-3 px-4 py-3 sm:px-5 ${p.isAvailable ? "" : "bg-ink/[0.025]"}`}>
+                  {p.imageUrl ? (
+                    <Image src={p.imageUrl} alt="" width={44} height={44} sizes="44px" className="size-11 flex-none rounded-lg object-cover ring-1 ring-line" />
+                  ) : null}
                   <div className="min-w-0 flex-1">
                     <p className={`truncate text-[15px] font-semibold ${p.isAvailable ? "" : "text-ink-soft"}`}>{p.name}</p>
                     <p className="text-[13.5px] text-ink-soft">
                       <span className="tabular">{formatUsd(p.priceCents)}</span>
+                      {p._count.optionGroups > 0
+                        ? ` · ${p._count.optionGroups} ${p._count.optionGroups === 1 ? "grupo" : "grupos"} de acompañantes`
+                        : ""}
                       {p.isAvailable ? "" : " · Agotado"}
                     </p>
                   </div>
@@ -118,6 +125,7 @@ export default async function AdminStorePage({ params, searchParams }: PageProps
                 etaMinutes: String(store.etaMinutes),
                 whatsappPhone: store.whatsappPhone,
                 isActive: store.isActive,
+                imageUrl: store.imageUrl,
               }}
             />
           </div>

@@ -34,8 +34,8 @@ export function generatePublicCode(length = 5) {
   return code;
 }
 
-/** Costo de envío fijo del MVP (centavos de USD), configurable por entorno. */
+/** Costo de envío fijo (centavos de USD): $2.00 por defecto, configurable por entorno. */
 export function deliveryFeeCents() {
-  const raw = Number(process.env.DELIVERY_FEE_CENTS ?? "150");
-  return Number.isInteger(raw) && raw >= 0 ? raw : 150;
+  const raw = Number(process.env.DELIVERY_FEE_CENTS ?? "200");
+  return Number.isInteger(raw) && raw >= 0 ? raw : 200;
 }

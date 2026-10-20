@@ -17,7 +17,7 @@ export function getCustomerOrder(publicCode: string, userId: string) {
       createdAt: true,
       respondedAt: true,
       store: { select: { name: true, slug: true } },
-      items: { select: { id: true, nameSnapshot: true, unitPriceCents: true, quantity: true } },
+      items: { select: { id: true, nameSnapshot: true, optionsSummary: true, unitPriceCents: true, quantity: true } },
     },
   });
 }

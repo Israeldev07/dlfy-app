@@ -40,7 +40,7 @@ export function CheckoutForm({ deliveryFeeCents, defaults }: Props) {
   useEffect(() => {
     if (!hydrated || !storeId) return;
     let cancelled = false;
-    const productIds = useCart.getState().lines.map((l) => l.productId);
+    const productIds = [...new Set(useCart.getState().lines.map((l) => l.productId))];
     quoteCartAction({ storeId, productIds })
       .then(({ quote }) => {
         if (!cancelled && quote) setChanges(useCart.getState().syncPrices(quote));
@@ -73,7 +73,7 @@ export function CheckoutForm({ deliveryFeeCents, defaults }: Props) {
   }
 
   const { subtotalCents } = cartSummary(lines);
-  const items = JSON.stringify(lines.map((l) => ({ productId: l.productId, quantity: l.quantity })));
+  const items = JSON.stringify(lines.map((l) => ({ productId: l.productId, quantity: l.quantity, optionIds: l.optionIds })));
   const totalCents = subtotalCents + feeCents;
 
   return (
@@ -185,12 +185,13 @@ export function CheckoutForm({ deliveryFeeCents, defaults }: Props) {
         </div>
         <ul className="flex flex-col gap-3">
           {lines.map((l) => (
-            <li key={l.productId} className="flex items-start justify-between gap-3 text-[15px]">
+            <li key={l.key} className="flex items-start justify-between gap-3 text-[15px]">
               <span className="min-w-0">
                 <span className="tabular font-semibold">{l.quantity} ×</span> {l.name}
+                {l.optionsSummary ? <span className="block text-[13px] text-ink-soft">{l.optionsSummary}</span> : null}
                 <button
                   type="button"
-                  onClick={() => setQuantity(l.productId, 0)}
+                  onClick={() => setQuantity(l.key, 0)}
                   className="ml-2 text-[13px] font-medium text-brand underline hover:text-brand-deep"
                 >
                   Quitar
@@ -262,7 +263,7 @@ function CartChangesNotice({ changes }: { changes: CartChange[] }) {
               </>
             ) : (
               <>
-                <span className="font-semibold">{c.name}</span> ya no está disponible y lo quitamos.
+                <span className="font-semibold">{c.name}</span> cambió o ya no está disponible y lo quitamos.
               </>
             )}
           </li>

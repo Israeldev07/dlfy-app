@@ -128,12 +128,20 @@ export function CheckboxField({ label, name, hint, defaultChecked }: { label: st
   );
 }
 
-export function SubmitButton({ children, pendingLabel }: { children: ReactNode; pendingLabel: string }) {
+export function SubmitButton({
+  children,
+  pendingLabel,
+  disabled = false,
+}: {
+  children: ReactNode;
+  pendingLabel: string;
+  disabled?: boolean;
+}) {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={pending || disabled}
       aria-busy={pending || undefined}
       className="press inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-control bg-route px-6 text-[15px] font-bold text-ink hover:bg-route-deep disabled:cursor-progress disabled:opacity-70"
     >

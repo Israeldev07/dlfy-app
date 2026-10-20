@@ -15,6 +15,18 @@ const publicStoreSelect = {
   imageUrl: true,
 } as const;
 
+/** Grupos de opciones de un producto, en el orden en que los dejó el admin. */
+export const optionGroupsSelect = {
+  orderBy: { position: "asc" },
+  select: {
+    id: true,
+    name: true,
+    minSelect: true,
+    maxSelect: true,
+    options: { orderBy: { position: "asc" }, select: { id: true, name: true, priceDeltaCents: true } },
+  },
+} as const;
+
 export async function listStores(category?: StoreCategory) {
   return prisma.store.findMany({
     where: { isActive: true, ...(category ? { category } : {}) },
@@ -30,7 +42,14 @@ export async function getStoreWithProducts(slug: string) {
       ...publicStoreSelect,
       products: {
         where: { isAvailable: true },
-        select: { id: true, name: true, description: true, priceCents: true, imageUrl: true },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          priceCents: true,
+          imageUrl: true,
+          optionGroups: optionGroupsSelect,
+        },
         orderBy: { name: "asc" },
       },
     },

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import type { OrderStatus } from "@/generated/prisma/enums";
 import type { OrderFilters } from "@/lib/validations/admin";
+import { optionGroupsSelect } from "@/modules/catalog/queries";
 import { adminOrdersWhere, ecuadorDayRange, NEEDS_ATTENTION } from "./domain";
 
 // Todo este módulo es solo para el panel: las páginas que lo usan llaman antes a `requireAdmin`.
@@ -85,7 +86,7 @@ export function getAdminOrder(publicCode: string) {
       respondedAt: true,
       user: { select: { email: true } },
       store: { select: { id: true, name: true, sector: true } },
-      items: { select: { id: true, nameSnapshot: true, unitPriceCents: true, quantity: true } },
+      items: { select: { id: true, nameSnapshot: true, optionsSummary: true, unitPriceCents: true, quantity: true } },
       events: { orderBy: { createdAt: "asc" }, select: { id: true, from: true, to: true, actor: true, createdAt: true } },
       messages: {
         orderBy: { createdAt: "asc" },
@@ -129,9 +130,18 @@ export function getAdminStore(id: string) {
       etaMinutes: true,
       whatsappPhone: true,
       isActive: true,
+      imageUrl: true,
       products: {
         orderBy: [{ isAvailable: "desc" }, { name: "asc" }],
-        select: { id: true, name: true, description: true, priceCents: true, isAvailable: true },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          priceCents: true,
+          isAvailable: true,
+          imageUrl: true,
+          _count: { select: { optionGroups: true } },
+        },
       },
     },
   });
@@ -146,6 +156,8 @@ export function getAdminProduct(id: string) {
       description: true,
       priceCents: true,
       isAvailable: true,
+      imageUrl: true,
+      optionGroups: optionGroupsSelect,
       store: { select: { id: true, name: true } },
     },
   });

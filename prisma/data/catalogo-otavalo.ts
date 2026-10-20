@@ -179,11 +179,9 @@ export const storesWithMenu: CatalogStore[] = [
     description: "Tilapia frita con patacón, yuca o papas.",
     whatsappPhone: "+593991317939",
     products: [
-      { name: "Tilapia con patacón", description: "Tilapia + patacón + ensalada + tostado", priceCents: 400 },
-      { name: "Tilapia con yuca", description: "Tilapia + yuca + ensalada + tostado", priceCents: 400 },
-      { name: "Tilapia con yuca y arroz", description: "Tilapia + yuca + ensalada + tostado + arroz", priceCents: 400 },
-      { name: "Tilapia con papas", description: "Tilapia + papa cocinada + ensalada + tostado", priceCents: 400 },
-      { name: "Tilapia con papas y arroz", description: "Tilapia + papa cocinada + ensalada + tostado + arroz", priceCents: 400 },
+      // Un solo plato en vez de "Tilapia con patacón/yuca/papas (y arroz)": el acompañante
+      // (patacón, yuca o papas cocinadas) y el arroz opcional se configuran en /admin.
+      { name: "Tilapia frita", description: "Tilapia + ensalada + tostado", priceCents: 400 },
       { name: "Porción de arroz", priceCents: 150 },
       { name: "Porción de patacón", priceCents: 150 },
       { name: "Porción de papas", description: "Papas cocinadas", priceCents: 150 },

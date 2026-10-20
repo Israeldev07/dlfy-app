@@ -146,11 +146,48 @@ model Product {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  store      Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  orderItems OrderItem[]
+  store        Store                @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orderItems   OrderItem[]
+  optionGroups ProductOptionGroup[]
 
   @@index([storeId, isAvailable])
   @@map("products")
+}
+
+/// Grupo de acompañantes o extras de un producto (p. ej. "Acompañante: elige 1").
+model ProductOptionGroup {
+  id        String   @id @default(cuid())
+  productId String
+  name      String
+  /// Mínimo de opciones a elegir: 0 = opcional.
+  minSelect Int      @default(0)
+  /// Máximo de opciones a elegir.
+  maxSelect Int      @default(1)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  options ProductOption[]
+
+  @@index([productId])
+  @@map("product_option_groups")
+}
+
+model ProductOption {
+  id              String   @id @default(cuid())
+  groupId         String
+  name            String
+  /// Lo que suma al precio del producto, en centavos (0 = sin costo).
+  priceDeltaCents Int      @default(0)
+  position        Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  group ProductOptionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@map("product_options")
 }
 
 // ───────────── Pedidos ─────────────
@@ -213,6 +250,9 @@ model OrderItem {
   orderId        String
   productId      String
   nameSnapshot   String
+  /// Opciones elegidas tal como se vieron al pedir (p. ej. "Acompañante: Yuca · Agrega: Arroz").
+  optionsSummary String?
+  /// Precio unitario con las opciones ya sumadas.
   unitPriceCents Int
   quantity       Int
   createdAt      DateTime @default(now())

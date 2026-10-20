@@ -8,49 +8,50 @@ import { reconcileCart, type CartChange, type CartLine, type CartQuote } from ".
 
 export type { CartLine } from "./cart-sync";
 export type CartStore = { id: string; slug: string; name: string; category: StoreCategory };
+export type NewCartLine = Omit<CartLine, "quantity">;
 
 type CartState = {
   store: CartStore | null;
   lines: CartLine[];
   /** Devuelve "conflict" si el producto es de otro comercio (un comercio por pedido). */
-  add: (store: CartStore, product: Omit<CartLine, "quantity">) => "added" | "conflict";
-  setQuantity: (productId: string, quantity: number) => void;
-  replaceWith: (store: CartStore, product: Omit<CartLine, "quantity">) => void;
+  add: (store: CartStore, line: NewCartLine, quantity?: number) => "added" | "conflict";
+  setQuantity: (key: string, quantity: number) => void;
+  replaceWith: (store: CartStore, line: NewCartLine, quantity?: number) => void;
   /** Aplica precios y disponibilidad actuales del servidor; devuelve qué cambió. */
   syncPrices: (quote: CartQuote) => CartChange[];
   clear: () => void;
 };
 
-const MAX_QTY = 50;
+export const MAX_QTY = 50;
+
+const clampQty = (n: number) => Math.min(Math.max(1, n), MAX_QTY);
 
 export const useCart = create<CartState>()(
   persist(
     (set, get) => ({
       store: null,
       lines: [],
-      add(store, product) {
+      add(store, line, quantity = 1) {
         const current = get();
         if (current.store && current.store.id !== store.id && current.lines.length > 0) return "conflict";
-        const existing = current.lines.find((l) => l.productId === product.productId);
+        const existing = current.lines.find((l) => l.key === line.key);
         set({
           store,
           lines: existing
-            ? current.lines.map((l) =>
-                l.productId === product.productId ? { ...l, quantity: Math.min(l.quantity + 1, MAX_QTY) } : l,
-              )
-            : [...current.lines, { ...product, quantity: 1 }],
+            ? current.lines.map((l) => (l.key === line.key ? { ...l, quantity: clampQty(l.quantity + quantity) } : l))
+            : [...current.lines, { ...line, quantity: clampQty(quantity) }],
         });
         return "added";
       },
-      setQuantity(productId, quantity) {
+      setQuantity(key, quantity) {
         const lines =
           quantity <= 0
-            ? get().lines.filter((l) => l.productId !== productId)
-            : get().lines.map((l) => (l.productId === productId ? { ...l, quantity: Math.min(quantity, MAX_QTY) } : l));
+            ? get().lines.filter((l) => l.key !== key)
+            : get().lines.map((l) => (l.key === key ? { ...l, quantity: clampQty(quantity) } : l));
         set({ lines, store: lines.length ? get().store : null });
       },
-      replaceWith(store, product) {
-        set({ store, lines: [{ ...product, quantity: 1 }] });
+      replaceWith(store, line, quantity = 1) {
+        set({ store, lines: [{ ...line, quantity: clampQty(quantity) }] });
       },
       syncPrices(quote) {
         const current = get();
@@ -66,9 +67,17 @@ export const useCart = create<CartState>()(
     }),
     {
       name: "dfly-cart",
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({ store: s.store, lines: s.lines }),
+      // v1 no tenía opciones: cada línea era un producto sin acompañantes.
+      migrate: (persisted, version) => {
+        const state = persisted as { store: CartStore | null; lines: Partial<CartLine>[] };
+        if (version < 2) {
+          state.lines = state.lines.map((l) => ({ ...l, key: l.productId, optionIds: [], optionsSummary: null }));
+        }
+        return state as { store: CartStore | null; lines: CartLine[] };
+      },
       // Se rehidrata tras montar (CartHydrator) para no romper la hidratación de React.
       skipHydration: true,
     },

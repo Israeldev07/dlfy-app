@@ -14,6 +14,9 @@
   /* Rojo aclarado para enlaces sobre fondo oscuro (contraste AA sobre la foto). */
   --color-brand-light: #ff4d77;
   --color-surface: #ffffff;
+  /* Fondo del video del hero (debe coincidir con el azul del MP4) y su velo de legibilidad. */
+  --color-hero: #3d93fa;
+  --color-hero-deep: #0b2a57;
   --color-muted: #eceae6;
 
   --font-sans: var(--font-archivo), system-ui, sans-serif;
@@ -132,6 +135,19 @@
     }
   }
 
+  /* Entrada del hero: cada bloque sube y aparece, escalonado con --i (70 ms por paso).
+     Animación CSS para que no se trabe mientras la página termina de cargar. */
+  .hero-in {
+    animation: hero-in 600ms var(--ease-out) both;
+    animation-delay: calc(var(--i, 0) * 70ms + 80ms);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-in {
+      animation-name: hero-fade;
+      animation-duration: 200ms;
+    }
+  }
+
   /* Feedback de pulsación en botones primarios. */
   .press {
     transition:
@@ -140,5 +156,18 @@
   }
   .press:active:not(:disabled) {
     transform: scale(0.97);
+  }
+}
+
+@keyframes hero-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+@keyframes hero-fade {
+  from {
+    opacity: 0;
   }
 }

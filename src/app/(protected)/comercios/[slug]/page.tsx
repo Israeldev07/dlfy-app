@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Clock } from "lucide-react";
-import { StoreGlyph } from "@/components/store-glyph";
+import { StoreAvatar } from "@/components/store-avatar";
 import { ProductList } from "@/components/cart/product-list";
 import { categoryLabel, categorySlug } from "@/modules/catalog/categories";
 import { getStoreWithProducts } from "@/modules/catalog/queries";
@@ -31,9 +31,7 @@ export default async function StorePage({ params }: PageProps<"/comercios/[slug]
       </Link>
 
       <header className="flex items-center gap-5">
-        <span className="flex size-20 flex-none items-center justify-center rounded-xl bg-muted text-store sm:size-24">
-          <StoreGlyph className="size-11 sm:size-14" />
-        </span>
+        <StoreAvatar imageUrl={store.imageUrl} px={96} className="size-20 sm:size-24" glyphClassName="size-11 sm:size-14" />
         <div className="flex min-w-0 flex-col gap-2">
           <h1 className="font-display text-[30px] leading-none tracking-[-0.03em] text-balance sm:text-[40px]">
             {store.name}

@@ -6,7 +6,8 @@
  * un tipo que no tiene nombre, teléfono ni dirección del cliente.
  */
 
-export type LineView = { name: string; quantity: number };
+/** `options`: acompañantes y extras elegidos (los define el admin, no el cliente). */
+export type LineView = { name: string; quantity: number; options?: string | null };
 
 /** Lo único que ve el comercio. No añadir campos del cliente aquí. */
 export type StoreOrderView = {
@@ -65,7 +66,7 @@ export function sanitizeStoreNotes(notes: string | null | undefined) {
 }
 
 function itemsLine(items: LineView[]) {
-  return items.map((i) => `${i.quantity} x ${i.name}`).join(", ");
+  return items.map((i) => `${i.quantity} x ${i.name}${i.options ? ` (${i.options})` : ""}`).join(", ");
 }
 
 const PAYMENT_LABEL = { CASH: "Efectivo", TRANSFER: "Transferencia" } as const;

@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 App de delivery para **Otavalo (Ecuador)**: USD en centavos, celulares +593. Categorías: Restaurantes, Market, Farmacia, Licores y Mascotas. Flujo de pedidos: cliente → WhatsApp del dueño (datos completos) → comercio (solo productos, botones Aceptar/Rechazar) → confirmación al dueño y al cliente. Vía WhatsApp Cloud API con patrón outbox. Contexto de producto en `PRODUCT.md`; diseño de referencia en `Dfly Home v2.dc.html`.
 
-Hecho: auth, catálogo, carrito, checkout, pedidos con estado en vivo, perfil, y mensajería (builders, outbox con reintentos, webhook firmado, crons). Sin credenciales de Meta, los mensajes se registran en la consola del servidor (`[whatsapp:dev]`). Backoffice en `/admin` (resumen del día, pedidos con cancelar/reintentar mensajes, comercios y productos). Catálogo real de restaurantes en `prisma/data/catalogo-otavalo.ts` (6 comercios con menú; `Store.whatsappPhone` es obligatorio porque ahí llegan los pedidos, así que los restaurantes del directorio quedan en `pendingStores` hasta tener número). Pendiente: WhatsApp y menú de esos restaurantes, fotos de productos, comercios de Market/Farmacia/Licores/Mascotas (hoy solo los ficticios del seed).
+Hecho: auth, catálogo, carrito, checkout, pedidos con estado en vivo, perfil, y mensajería (builders, outbox con reintentos, webhook firmado, crons). Sin credenciales de Meta, los mensajes se registran en la consola del servidor (`[whatsapp:dev]`). Backoffice en `/admin` (resumen del día, pedidos con cancelar/reintentar mensajes, comercios y productos). Catálogo real de restaurantes en `prisma/data/catalogo-otavalo.ts` (6 comercios con menú; `Store.whatsappPhone` es obligatorio porque ahí llegan los pedidos, así que los restaurantes del directorio quedan en `pendingStores` hasta tener número). El admin sube fotos de comercios y productos y define acompañantes/extras por producto. Pendiente: proyecto de Supabase para las fotos en producción, WhatsApp y menú de esos restaurantes, comercios de Market/Farmacia/Licores/Mascotas (hoy solo los ficticios del seed).
 
 ## Comandos
 
@@ -27,13 +27,16 @@ Hecho: auth, catálogo, carrito, checkout, pedidos con estado en vivo, perfil, y
 | Importar catálogo real (idempotente) | `npm run db:import-catalog` |
 | Explorar datos | `npm run db:studio` |
 
-Notas: el cliente Prisma (v7, `prisma-client` + `@prisma/adapter-pg`) se genera en `src/generated/prisma` (ignorado por git) y se importa desde `@/generated/prisma/client`; los enums desde `@/generated/prisma/enums`. La app conecta con `DATABASE_URL` (puede ir por pooler); el CLI (`prisma.config.ts`) usa `DIRECT_URL`. Los tests son unitarios puros (`src/**/*.test.ts`), sin base de datos. npm 12 bloquea los scripts de instalación, por eso se usa `bcryptjs`. `src/proxy.ts` debe exportar la función por defecto (no sirve una exportación desestructurada).
+Versiones: Next.js 16.3, React 19.2, Auth.js 5 beta, Prisma 7, Zod 4, Tailwind CSS 4, Zustand 5.
+
+Notas: `postinstall` ejecuta `prisma generate`. El cliente Prisma (v7, `prisma-client` + `@prisma/adapter-pg`) se genera en `src/generated/prisma` (ignorado por git) y se importa desde `@/generated/prisma/client`; los enums desde `@/generated/prisma/enums`. La app conecta con `DATABASE_URL` (puede ir por pooler); el CLI (`prisma.config.ts`) usa `DIRECT_URL`. Los tests son unitarios puros (`src/**/*.test.ts`), sin base de datos. npm 12 bloquea los scripts de instalación, por eso se usa `bcryptjs`. `src/proxy.ts` debe exportar la función por defecto (no sirve una exportación desestructurada).
 
 ## Configuración de Claude en el repo
 
 - `.claude/rules/` — reglas detalladas por capa (`nextjs.md`, `database.md`, `auth.md`); son normativas y amplían este archivo.
 - `.claude/agents/frontend-builder.md` — subagente para trabajo de UI (páginas, componentes, diseño, animación). Solo usa las skills del proyecto: `impeccable`, `design-taste-frontend` y `animate`.
-- `.claude/skills/` — skills de diseño instaladas desde GitHub (versiones fijadas en `skills-lock.json`); no editarlas a mano.
+- `.claude/agents/007jarvis.md` (007Jarvis) — subagente de solo lectura que revisa la app de extremo a extremo (flujo de pedido, seguridad del login, pago y BD) y entrega un informe por severidad.
+- `.claude/skills/` — skills de diseño y `ucp` (Universal Commerce Protocol, de `vercel-labs/agentic-commerce-skills`) instaladas desde GitHub (versiones fijadas en `skills-lock.json`); no editarlas a mano.
 
 Estas reglas definen el stack base. Toda decisión técnica nueva debe respetarlas; si algo requiere desviarse, se propone y se justifica antes de implementarlo.
 
@@ -56,13 +59,13 @@ Estas reglas definen el stack base. Toda decisión técnica nueva debe respetarl
 
 ## Arquitectura
 
-La lógica de negocio vive en `src/modules/<dominio>/` (`identity`, `catalog`, `ordering`, `messaging`); `src/app` solo compone páginas y Route Handlers. Los archivos de servidor llevan `import "server-only"`; `domain.ts` y los builders de mensajes son puros para poder testearlos.
+La lógica de negocio vive en `src/modules/<dominio>/` (`identity`, `catalog`, `ordering`, `messaging`, `admin`); `src/app` solo compone páginas y Route Handlers. Los archivos de servidor llevan `import "server-only"`; `domain.ts` y los builders de mensajes son puros para poder testearlos.
 
 **Ciclo de un pedido** (`OrderStatus`: `PENDING → SENT_TO_STORE → ACCEPTED | REJECTED | EXPIRED`, más `CANCELLED`):
 1. `ordering/actions.ts#createOrderAction` valida con Zod, **recalcula precios desde la BD** y, en una sola transacción, crea el pedido y encola dos mensajes: `ADMIN_NEW_ORDER` (datos completos al dueño) y `STORE_REQUEST` (solo productos y notas saneadas al comercio; nunca datos del cliente). Luego dispara el envío con `after()`.
 2. `messaging/outbox.ts#dispatchOutbox` envía lo pendiente con reserva optimista (`attempts` como versión), backoff exponencial y máx. 5 intentos. Al enviarse `STORE_REQUEST`, el pedido pasa a `SENT_TO_STORE`. Es seguro correrlo en paralelo (`after()` + cron).
-3. Los botones del comercio llevan un payload firmado con HMAC (`messaging/action-payload.ts`, `ORDER_ACTION_SECRET`). El webhook (`api/webhooks/whatsapp`) verifica la firma de Meta, deduplica por `WebhookEvent.waMessageId` y llama a `ordering/store-response.ts#applyStoreResponse`, que exige que el remitente sea el número del comercio.
-4. Crons (`api/cron/outbox`, `api/cron/expire-orders`, autenticados con `Bearer CRON_SECRET` vía `lib/cron-auth.ts`): reintentos del outbox y expiración de pedidos sin respuesta tras `ORDER_RESPONSE_TIMEOUT_MIN`. El repo no los programa (no hay `vercel.json`); hay que invocarlos desde fuera.
+3. Los botones del comercio llevan un payload firmado con HMAC (`messaging/action-payload.ts`, `ORDER_ACTION_SECRET`). El webhook (`api/webhooks/whatsapp`) verifica la firma de Meta y llama a `ordering/store-response.ts#applyStoreResponse`, que exige que el remitente sea el número del comercio y registra `WebhookEvent.waMessageId` en la misma transacción que el cambio de estado (así un fallo no deja el evento marcado). Si alguna pulsación falla, el webhook responde 500 para que Meta reintente.
+4. Crons (`api/cron/outbox`, `api/cron/expire-orders`, autenticados con `Bearer CRON_SECRET` vía `lib/cron-auth.ts`): reintentos del outbox y expiración de pedidos sin respuesta tras `ORDER_RESPONSE_TIMEOUT_MIN`. Se despliega en Vercel Pro: `vercel.json` los programa cada minuto y Vercel envía el `Bearer` solo si `CRON_SECRET` está en las variables del proyecto (el plan Hobby no admite crons de más de una vez al día).
 
 Invariantes:
 - Todo cambio de estado pasa por `ordering/transitions.ts#transitionOrder`: valida contra la tabla de `domain.ts`, hace `updateMany` condicionado al estado actual (gana la primera respuesta) y registra un `OrderStatusEvent`.
@@ -73,6 +76,10 @@ Invariantes:
 **Carrito**: estado cliente con Zustand persistido (`ordering/cart-store.ts`), un solo comercio por carrito; en el checkout los precios del cliente se ignoran.
 
 **Catálogo real**: fuente, el catálogo de WhatsApp Business de Dfly (sin promociones temporales ni productos sin precio). `prisma/import-catalog.ts` hace upsert del comercio por `slug` (nombre, descripción, WhatsApp; no toca sector, tiempo de entrega, visibilidad ni imagen, que se ajustan en `/admin`) y del producto por nombre dentro del comercio (precio y descripción); nunca borra.
+
+**Acompañantes y extras**: `ProductOptionGroup` (con `minSelect`/`maxSelect`) y `ProductOption` (`priceDeltaCents` libre). `catalog/options.ts#priceSelection` (puro) valida la selección y calcula el precio; el checkout lo ejecuta con datos de la BD y guarda en `OrderItem` el precio unitario con extras y `optionsSummary` (texto que ve el comercio en WhatsApp). En el carrito, una línea = producto + opciones (`lineKey`). Al editar, `admin/product-options.ts#syncOptionGroups` conserva los ids existentes para no invalidar carritos abiertos.
+
+**Fotos**: `lib/storage.ts` sube a Supabase Storage (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, bucket público `SUPABASE_STORAGE_BUCKET`); sin credenciales, solo en desarrollo, guarda en `public/uploads` (ignorado por git). Valida el tipo por los primeros bytes (`lib/image-type.ts`), máx. 4 MB (`serverActions.bodySizeLimit` = 5 MB en `next.config.ts`, que también autoriza el host de Supabase en `images.remotePatterns`).
 
 **Panel admin** (`src/app/admin`, lógica en `modules/admin`): cada página llama a `identity/session.ts#requireAdmin` y cada acción a `assertAdmin()`; ambos leen el rol de la BD, no del JWT, y a quien no es admin le responden 404. El usuario `ADMIN` lo crea o asciende el seed con `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`. La cancelación (`ordering/admin-cancel.ts`) marca `SKIPPED` el `STORE_REQUEST` aún en cola y avisa al comercio solo si ya recibió el pedido; si el pedido al comercio sale justo mientras se cancela, el outbox le encola el aviso.
 

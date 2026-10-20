@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 export const loginSchema = z.object({
-  email: z.email("Ingresa un email válido").trim().toLowerCase(),
+  // trim antes de validar: el autocompletado del celular suele dejar un espacio al final.
+  email: z.string().trim().toLowerCase().pipe(z.email("Ingresa un email válido")),
   password: z.string().min(8, "Mínimo 8 caracteres").max(72),
 });
 

@@ -9,6 +9,8 @@ import { cartQuoteSchema, checkoutSchema } from "@/lib/validations/checkout";
 import { consumeRateLimit } from "@/lib/rate-limit";
 import { retryAfterLabel } from "@/lib/rate-limit-rules";
 import { formatUsd } from "@/modules/catalog/categories";
+import { priceSelection, type ProductWithOptions } from "@/modules/catalog/options";
+import { optionGroupsSelect } from "@/modules/catalog/queries";
 import { adminNewOrderMessage, sanitizeStoreNotes, storeRequestMessage } from "@/modules/messaging/messages";
 import { buildActionPayload } from "@/modules/messaging/action-payload";
 import { adminPhone, dispatchOutbox, enqueue } from "@/modules/messaging/outbox";
@@ -28,16 +30,16 @@ export type CheckoutState = {
 
 const KEPT_FIELDS = ["addressLine", "sector", "reference", "phone", "notes", "paymentMethod", "ageConfirmed"] as const;
 
-/** Productos disponibles (con precio de la BD) de un comercio activo. */
-function availableProducts(storeId: string, productIds: string[]) {
+/** Productos disponibles (con precio y opciones de la BD) de un comercio activo. */
+function availableProducts(storeId: string, productIds: string[]): Promise<ProductWithOptions[]> {
   return prisma.product.findMany({
     where: { storeId, isAvailable: true, store: { isActive: true }, id: { in: productIds } },
-    select: { id: true, name: true, priceCents: true },
+    select: { id: true, name: true, priceCents: true, optionGroups: optionGroupsSelect },
   });
 }
 
-function toQuote(storeId: string, products: { id: string; name: string; priceCents: number }[]): CartQuote {
-  return { storeId, products: products.map((p) => ({ productId: p.id, name: p.name, priceCents: p.priceCents })) };
+function toQuote(storeId: string, products: ProductWithOptions[]): CartQuote {
+  return { storeId, products };
 }
 
 /**
@@ -89,10 +91,25 @@ export async function createOrderAction(_prev: CheckoutState, formData: FormData
     };
   }
 
-  const lines = input.items.map((i) => {
+  const lines: {
+    productId: string;
+    nameSnapshot: string;
+    optionsSummary: string | null;
+    unitPriceCents: number;
+    quantity: number;
+  }[] = [];
+  for (const i of input.items) {
     const product = byId.get(i.productId)!;
-    return { productId: product.id, nameSnapshot: product.name, unitPriceCents: product.priceCents, quantity: i.quantity };
-  });
+    const priced = priceSelection(product, i.optionIds);
+    if (!priced.ok) return { error: priced.error, values, quote: toQuote(store.id, products) };
+    lines.push({
+      productId: product.id,
+      nameSnapshot: product.name,
+      optionsSummary: priced.summary,
+      unitPriceCents: priced.unitPriceCents,
+      quantity: i.quantity,
+    });
+  }
   const fee = deliveryFeeCents();
   const totals = computeTotals(lines, fee);
 
@@ -144,7 +161,7 @@ export async function createOrderAction(_prev: CheckoutState, formData: FormData
         await tx.user.update({ where: { id: userId }, data: { phone: input.phone } });
         await saveDefaultAddress(tx, userId, input.addressLine, input.sector, store.city, input.reference);
 
-        const items = lines.map((l) => ({ name: l.nameSnapshot, quantity: l.quantity }));
+        const items = lines.map((l) => ({ name: l.nameSnapshot, options: l.optionsSummary, quantity: l.quantity }));
         await enqueue(
           tx,
           created.id,

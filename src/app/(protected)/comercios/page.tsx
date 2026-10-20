@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Clock } from "lucide-react";
 import { CategoryChips } from "@/components/category-chips";
-import { StoreGlyph } from "@/components/store-glyph";
+import { StoreAvatar } from "@/components/store-avatar";
 import { categoryFromSlug, categoryLabel } from "@/modules/catalog/categories";
 import { listStores } from "@/modules/catalog/queries";
 import { requireUser } from "@/modules/identity/session";
@@ -50,9 +50,7 @@ export default async function StoresPage({ searchParams }: PageProps<"/comercios
                 href={`/comercios/${s.slug}`}
                 className="group flex h-full items-center gap-4 rounded-surface bg-surface p-4 text-ink no-underline ring-1 ring-line transition-shadow duration-200 hover:shadow-lift sm:p-5"
               >
-                <span className="flex size-16 flex-none items-center justify-center rounded-xl bg-muted text-store sm:size-[72px]">
-                  <StoreGlyph className="size-9 sm:size-10" />
-                </span>
+                <StoreAvatar imageUrl={s.imageUrl} px={72} className="size-16 sm:size-[72px]" glyphClassName="size-9 sm:size-10" />
                 <span className="flex min-w-0 flex-1 flex-col gap-1">
                   <span className="truncate text-[17px] font-bold tracking-[-0.01em]">{s.name}</span>
                   <span className="truncate text-[13.5px] text-ink/65">

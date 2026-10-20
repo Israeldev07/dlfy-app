@@ -6,6 +6,7 @@ const cartItemsSchema = z
     z.object({
       productId: z.string().min(1).max(40),
       quantity: z.number().int().min(1, "Cantidad inválida").max(50, "Máximo 50 unidades por producto"),
+      optionIds: z.array(z.string().min(1).max(40)).max(30).default([]),
     }),
   )
   .min(1, "Tu carrito está vacío")

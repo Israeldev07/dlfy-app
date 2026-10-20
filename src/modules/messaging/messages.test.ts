@@ -14,7 +14,7 @@ const order: AdminOrderView = {
   storeName: "Fritadas El Lago",
   items: [
     { name: "Fritada completa", quantity: 2 },
-    { name: "Jugo de mora", quantity: 1 },
+    { name: "Jugo de mora", quantity: 1, options: "Tamaño: Grande" },
   ],
   storeNotes: "Sin cebolla, por favor",
   customerName: "María Cachimuel",
@@ -34,6 +34,7 @@ describe("privacidad del mensaje al comercio", () => {
     expect(everything).not.toContain("991234567");
     expect(everything).not.toContain("Bolívar");
     expect(everything).toContain("2 x Fritada completa");
+    expect(everything).toContain("1 x Jugo de mora (Tamaño: Grande)");
     expect(msg.quickReplies).toEqual(["A", "R"]);
   });
 

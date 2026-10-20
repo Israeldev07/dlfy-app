@@ -1,6 +1,4 @@
 import { after } from "next/server";
-import { prisma } from "@/lib/db";
-import { Prisma } from "@/generated/prisma/client";
 import { parseActionPayload } from "@/modules/messaging/action-payload";
 import { dispatchOutbox } from "@/modules/messaging/outbox";
 import { extractButtonTaps, isValidSignature } from "@/modules/messaging/webhook";
@@ -38,24 +36,23 @@ export async function POST(request: Request) {
 
   const taps = extractButtonTaps(body, process.env.WHATSAPP_PHONE_NUMBER_ID);
   const touchedOrders = new Set<string>();
+  let failed = false;
 
   for (const tap of taps) {
-    // Idempotencia: Meta puede reenviar el mismo evento.
-    try {
-      await prisma.webhookEvent.create({ data: { waMessageId: tap.messageId } });
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") continue;
-      throw error;
-    }
-
     const action = parseActionPayload(tap.payload);
     if (!action) {
       console.warn(`[webhook] payload no reconocido de ${tap.from}`);
       continue;
     }
-    const result = await applyStoreResponse(action.orderId, action.action, tap.from);
-    console.info(`[webhook] pedido ${action.orderId}: ${action.action} → ${result}`);
-    if (result === "applied") touchedOrders.add(action.orderId);
+    try {
+      const result = await applyStoreResponse(action.orderId, action.action, tap.from, tap.messageId);
+      console.info(`[webhook] pedido ${action.orderId}: ${action.action} → ${result}`);
+      if (result === "applied") touchedOrders.add(action.orderId);
+    } catch (error) {
+      // Se siguen procesando las demás; la fallida no quedó registrada y se reintenta.
+      console.error(`[webhook] error al aplicar ${action.action} al pedido ${action.orderId}`, error);
+      failed = true;
+    }
   }
 
   if (touchedOrders.size > 0) {
@@ -63,6 +60,7 @@ export async function POST(request: Request) {
       for (const orderId of touchedOrders) await dispatchOutbox({ orderId });
     });
   }
-  // Responder 200 rápido; Meta reintenta ante cualquier otro código.
+  // Meta reintenta ante cualquier código distinto de 200; las ya aplicadas quedan deduplicadas.
+  if (failed) return new Response("Retry", { status: 500 });
   return new Response("OK", { status: 200 });
 }

@@ -34,6 +34,20 @@ export default async function EditProductPage({ params }: PageProps<"/admin/prod
             description: product.description ?? "",
             price: centsToInput(product.priceCents),
             isAvailable: product.isAvailable,
+            imageUrl: product.imageUrl,
+            optionGroups: product.optionGroups.map((g) => ({
+              key: g.id,
+              id: g.id,
+              name: g.name,
+              required: g.minSelect > 0,
+              maxSelect: g.maxSelect,
+              options: g.options.map((o) => ({
+                key: o.id,
+                id: o.id,
+                name: o.name,
+                price: o.priceDeltaCents > 0 ? centsToInput(o.priceDeltaCents) : "",
+              })),
+            })),
           }}
         />
       </div>

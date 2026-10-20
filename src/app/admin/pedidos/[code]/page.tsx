@@ -60,6 +60,7 @@ export default async function AdminOrderPage({ params }: PageProps<"/admin/pedid
                 <li key={i.id} className="flex items-start justify-between gap-4 text-[15px]">
                   <span>
                     <span className="tabular font-semibold">{i.quantity} ×</span> {i.nameSnapshot}
+                    {i.optionsSummary ? <span className="block text-[13px] text-ink-soft">{i.optionsSummary}</span> : null}
                   </span>
                   <span className="tabular flex-none">{formatUsd(i.unitPriceCents * i.quantity)}</span>
                 </li>

@@ -41,6 +41,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# fotos subidas en desarrollo sin Supabase (src/lib/storage.ts)
+/public/uploads
+
 # prisma client generado
 /src/generated
 

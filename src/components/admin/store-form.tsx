@@ -5,6 +5,8 @@ import { CheckCircle2 } from "lucide-react";
 import { CheckboxField, Field, FormError, SelectField, SubmitButton, TextareaField } from "@/components/forms";
 import { CATEGORIES } from "@/modules/catalog/categories";
 import { saveStoreAction, type AdminFormState } from "@/modules/admin/actions";
+import { ImageField } from "./image-field";
+import { useRedirectAfterSave } from "./use-redirect-after-save";
 
 export type StoreFormValues = {
   name: string;
@@ -14,6 +16,7 @@ export type StoreFormValues = {
   etaMinutes: string;
   whatsappPhone: string;
   isActive: boolean;
+  imageUrl: string | null;
 };
 
 const EMPTY: StoreFormValues = {
@@ -24,6 +27,7 @@ const EMPTY: StoreFormValues = {
   etaMinutes: "30",
   whatsappPhone: "",
   isActive: true,
+  imageUrl: null,
 };
 
 export function StoreForm({ storeId, initial = EMPTY }: { storeId?: string; initial?: StoreFormValues }) {
@@ -32,6 +36,7 @@ export function StoreForm({ storeId, initial = EMPTY }: { storeId?: string; init
   const v = { ...initial, ...state.values };
   // Tras un error, el checkbox sigue lo que se envió (ausente = desmarcado).
   const isActive = state.values ? state.values.isActive === "on" : initial.isActive;
+  useRedirectAfterSave(state.redirectTo);
 
   return (
     <form action={action} noValidate className="flex flex-col gap-4">
@@ -80,6 +85,8 @@ export function StoreForm({ storeId, initial = EMPTY }: { storeId?: string; init
         placeholder="Ej. Fritada y hornado tradicional"
         error={fe.description}
       />
+      {/* La key lo reinicia al guardar: si no, el archivo ya subido quedaría elegido y se volvería a enviar. */}
+      <ImageField key={initial.imageUrl ?? "sin-foto"} label="Foto del local (opcional)" currentUrl={initial.imageUrl} error={fe.image} />
       <CheckboxField
         label="Visible para los clientes"
         name="isActive"
@@ -90,11 +97,12 @@ export function StoreForm({ storeId, initial = EMPTY }: { storeId?: string; init
       {state.ok ? (
         <p role="status" className="flex items-center gap-2 text-[14px] font-medium text-route-deep">
           <CheckCircle2 aria-hidden className="size-4" strokeWidth={2.25} />
-          Cambios guardados.
+          {state.redirectTo ? "Comercio creado. Abriendo su ficha…" : "Cambios guardados."}
         </p>
       ) : null}
       <div className="sm:w-60">
-        <SubmitButton pendingLabel="Guardando…">{storeId ? "Guardar cambios" : "Crear comercio"}</SubmitButton>
+        {/* Ya creado: bloqueado mientras se navega para no crear el comercio dos veces. */}
+        <SubmitButton pendingLabel="Guardando…" disabled={Boolean(state.redirectTo)}>{storeId ? "Guardar cambios" : "Crear comercio"}</SubmitButton>
       </div>
     </form>
   );

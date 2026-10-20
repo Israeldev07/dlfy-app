@@ -1,4 +1,5 @@
 import "server-only";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import type { StoreAction } from "@/modules/messaging/action-payload";
 import { adminExpiredMessage, adminResultMessage, customerResultMessage } from "@/modules/messaging/messages";
@@ -7,10 +8,18 @@ import { transitionOrder } from "./transitions";
 
 const digits = (phone: string) => phone.replace(/\D/g, "");
 
-export type StoreResponseResult = "applied" | "already-answered" | "not-found" | "wrong-sender";
+export type StoreResponseResult = "applied" | "already-answered" | "duplicate" | "not-found" | "wrong-sender";
 
-/** Aplica el Aceptar/Rechazar del comercio y encola los avisos al dueño y al cliente. */
-export async function applyStoreResponse(orderId: string, action: StoreAction, fromPhone: string): Promise<StoreResponseResult> {
+/**
+ * Aplica el Aceptar/Rechazar del comercio y encola los avisos al dueño y al cliente.
+ * `waMessageId` se registra en la misma transacción: si algo falla no queda marcado y el reintento de Meta vuelve a aplicarlo.
+ */
+export async function applyStoreResponse(
+  orderId: string,
+  action: StoreAction,
+  fromPhone: string,
+  waMessageId: string,
+): Promise<StoreResponseResult> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     select: {
@@ -25,23 +34,31 @@ export async function applyStoreResponse(orderId: string, action: StoreAction, f
   if (digits(order.store.whatsappPhone) !== digits(fromPhone)) return "wrong-sender";
 
   const accepted = action === "accept";
-  return prisma.$transaction(async (tx) => {
-    const changed = await transitionOrder(tx, orderId, "SENT_TO_STORE", accepted ? "ACCEPTED" : "REJECTED", "STORE", {
-      respondedAt: new Date(),
-    });
-    if (!changed) return "already-answered";
+  const ownerPhone = adminPhone();
+  try {
+    return await prisma.$transaction(async (tx) => {
+      // Idempotencia: Meta puede reenviar el mismo evento.
+      await tx.webhookEvent.create({ data: { waMessageId } });
+      const changed = await transitionOrder(tx, orderId, "SENT_TO_STORE", accepted ? "ACCEPTED" : "REJECTED", "STORE", {
+        respondedAt: new Date(),
+      });
+      if (!changed) return "already-answered";
 
-    const firstName = order.customerName.split(/\s+/)[0] ?? order.customerName;
-    await enqueue(tx, orderId, "ADMIN_RESULT", adminPhone(), adminResultMessage(order.publicCode, order.store.name, accepted));
-    await enqueue(
-      tx,
-      orderId,
-      "CUSTOMER_RESULT",
-      order.customerPhone,
-      customerResultMessage(order.publicCode, firstName, order.store.name, accepted),
-    );
-    return "applied";
-  });
+      const firstName = order.customerName.split(/\s+/)[0] ?? order.customerName;
+      await enqueue(tx, orderId, "ADMIN_RESULT", ownerPhone, adminResultMessage(order.publicCode, order.store.name, accepted));
+      await enqueue(
+        tx,
+        orderId,
+        "CUSTOMER_RESULT",
+        order.customerPhone,
+        customerResultMessage(order.publicCode, firstName, order.store.name, accepted),
+      );
+      return "applied";
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return "duplicate";
+    throw error;
+  }
 }
 
 export function responseTimeoutMinutes() {
