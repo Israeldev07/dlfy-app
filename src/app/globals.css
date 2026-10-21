@@ -15,8 +15,8 @@
   --color-brand-light: #ff4d77;
   --color-surface: #ffffff;
   /* Fondo del video del hero (debe coincidir con el azul del MP4) y su velo de legibilidad. */
-  --color-hero: #3d93fa;
-  --color-hero-deep: #0b2a57;
+  --color-hero: #24739b;
+  --color-hero-deep: #0a3247;
   --color-muted: #eceae6;
 
   --font-sans: var(--font-archivo), system-ui, sans-serif;

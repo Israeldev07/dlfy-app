@@ -16,11 +16,11 @@ export default async function HomePage() {
   return (
     <main className="flex flex-1 flex-col">
       {/* Móvil y tablet: video arriba y texto debajo sobre azul oscuro. Escritorio: video de fondo
-          contenido a la derecha (su fondo es el mismo azul de la sección, así que el resto se funde)
-          con un velo a la izquierda para leer el texto. */}
+          contenido a la derecha; su fondo no es plano, así que el borde izquierdo se desvanece hacia
+          el azul medio del MP4 (`--color-hero`) y un velo a la izquierda deja leer el texto. */}
       <section className="relative isolate overflow-hidden bg-hero-deep lg:bg-hero">
         <div className="relative lg:absolute lg:inset-0 lg:-z-10">
-          <HeroVideo className="block aspect-[4/3] w-full bg-hero object-cover object-[72%_50%] sm:aspect-[5/2] sm:object-[70%_50%] lg:aspect-auto lg:h-full lg:object-contain lg:object-right" />
+          <HeroVideo className="block aspect-[4/3] w-full bg-hero object-cover object-[85%_50%] sm:aspect-video lg:ml-auto lg:h-full lg:w-auto lg:max-w-none lg:[mask-image:linear-gradient(to_right,transparent,black_30%)]" />
           <div
             aria-hidden
             className="absolute inset-0 bg-linear-to-b from-transparent from-75% to-hero-deep lg:bg-linear-to-r lg:from-hero-deep/80 lg:from-0% lg:via-hero-deep/40 lg:via-35% lg:to-transparent lg:to-55%"

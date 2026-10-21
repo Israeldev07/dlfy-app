@@ -7,7 +7,7 @@ type Props = { className?: string };
 type NavigatorWithConnection = Navigator & { connection?: { saveData?: boolean } };
 
 /**
- * Animación decorativa del hero (pizza → jugo → hamburguesa → mochila Dfly, en bucle).
+ * Animación decorativa del hero (la mascota de Dfly sale corriendo con la mochila, en bucle).
  * Sin `autoPlay`: solo se reproduce si el usuario no pidió menos movimiento ni ahorro de datos,
  * y se pausa fuera de pantalla o con la pestaña oculta. En los demás casos queda el póster.
  */
@@ -50,7 +50,7 @@ export function HeroVideo({ className }: Props) {
     <video
       ref={ref}
       className={className}
-      poster="/videos/hero-food-poster.jpg"
+      poster="/videos/hero-mascota-poster.jpg"
       muted
       loop
       playsInline
@@ -58,7 +58,7 @@ export function HeroVideo({ className }: Props) {
       disablePictureInPicture
       aria-hidden
     >
-      <source src="/videos/hero-food.mp4" type="video/mp4" />
+      <source src="/videos/hero-mascota.mp4" type="video/mp4" />
     </video>
   );
 }
